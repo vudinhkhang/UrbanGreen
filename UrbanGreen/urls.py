@@ -17,9 +17,12 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path
-from public_map.views import home_view
+# Import view từ app của bạn
+from public_map.views import home_view 
 
 urlpatterns = [
-    path('admin/', admin.site.urls), # Trang thầy bảo dùng quản lý
-    path('', home_view, name='home'), # Trang web hiển thị của mình
+    path('admin/', admin.site.urls),
+    
+    # Dòng này định nghĩa: "Nếu vào trang chủ (trống), thì gọi home_view"
+    path('', home_view, name='home'), 
 ]

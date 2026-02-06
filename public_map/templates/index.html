@@ -32,11 +32,38 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    
     <script>
-        // Code hiển thị bản đồ sẽ nằm ở đây
-        var map = L.map('map').setView([10.8231, 106.6297], 13); // Tọa độ TP.HCM
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        // 1. Khởi tạo bản đồ (Tọa độ trung tâm TP.HCM)
+        var map = L.map('map').setView([10.8231, 106.6297], 13); 
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // 2. HỨNG DỮ LIỆU TỪ PYTHON GỬI SANG
+        // Chú ý: lệnh |safe là bắt buộc để Django không mã hóa ký tự đặc biệt
+        var treeData = {{ tree_json|safe }};
+
+        // 3. VÒNG LẶP: Duyệt qua từng cây và vẽ lên bản đồ
+        treeData.forEach(function(tree) {
+            
+            // Chọn màu sắc marker dựa theo trạng thái (Logic GIS đơn giản)
+            var color = 'blue';
+            if (tree.status === 'SAU_BENH') color = 'red';
+            if (tree.status === 'NGUY_HIEM') color = 'black';
+
+            // Tạo Marker
+            var marker = L.marker([tree.lat, tree.long]).addTo(map);
+            
+            // Tạo Popup khi click vào
+            marker.bindPopup(`
+                <b>Mã: ${tree.code}</b><br>
+                Loài: ${tree.name}<br>
+                Chiều cao: ${tree.height}m<br>
+                Trạng thái: <span style="color:${color}">${tree.status}</span>
+            `);
+        });
     </script>
 </body>
 </html>
