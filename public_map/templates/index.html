@@ -53,6 +53,12 @@
             if (tree.status === 'SAU_BENH') color = 'red';
             if (tree.status === 'NGUY_HIEM') color = 'black';
 
+            // Tạo mã HTML cho ảnh (Nếu có link ảnh thì hiện thẻ img, không thì thôi)
+            var imageHtml = '';
+            if (tree.image) {
+                imageHtml = `<img src="${tree.image}" style="width: 100%; height: auto; margin-top: 10px; border-radius: 5px;">`;
+            }
+
             // Tạo Marker
             var marker = L.marker([tree.lat, tree.long]).addTo(map);
             
@@ -61,7 +67,8 @@
                 <b>Mã: ${tree.code}</b><br>
                 Loài: ${tree.name}<br>
                 Chiều cao: ${tree.height}m<br>
-                Trạng thái: <span style="color:${color}">${tree.status}</span>
+                Trạng thái: <span style="color:${color}">${tree.status}</span><br>
+                ${imageHtml} 
             `);
         });
     </script>

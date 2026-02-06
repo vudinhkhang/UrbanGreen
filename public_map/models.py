@@ -24,6 +24,9 @@ class UrbanTree(models.Model):
     longitude = models.FloatField(verbose_name="Kinh độ (X)")
     
     address = models.CharField(max_length=200, verbose_name="Địa chỉ", blank=True)
+    
+    # Hình ảnh cây - upload_to: Tự động tạo thư mục 'tree_images' để chứa ảnh upload lên
+    image = models.ImageField(upload_to='tree_images/', verbose_name="Hình ảnh", blank=True, null=True)
 
     def __str__(self):
         return f"{self.code} - {self.species.name}"
