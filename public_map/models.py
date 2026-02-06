@@ -30,3 +30,20 @@ class UrbanTree(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.species.name}"
+
+# 3. Bảng Lịch sử chăm sóc
+class MaintenanceLog(models.Model):
+    # Liên kết với cây xanh (Một cây có nhiều lần chăm sóc)
+    tree = models.ForeignKey(UrbanTree, on_delete=models.CASCADE, verbose_name="Cây xanh")
+    date = models.DateField(verbose_name="Ngày thực hiện")
+    action = models.CharField(max_length=200, verbose_name="Công việc", choices=[
+        ('CAT_TIA', 'Cắt tỉa cành'),
+        ('BON_PHAN', 'Bón phân'),
+        ('PHUN_THUOC', 'Phun thuốc trừ sâu'),
+        ('KIEM_TRA', 'Kiểm tra định kỳ')
+    ])
+    performer = models.CharField(max_length=100, verbose_name="Người thực hiện")
+    note = models.TextField(verbose_name="Ghi chú/Kết quả", blank=True)
+
+    def __str__(self):
+        return f"{self.tree.code} - {self.action} ({self.date})"

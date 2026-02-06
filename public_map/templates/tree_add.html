@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}Thêm Cây Mới - Urban Green GIS{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1><i class="fas fa-plus-circle"></i> Thêm Cây Xanh Mới</h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success">
+                    <h5 class="mb-0">📋 Thông tin Cây</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <!-- Row 1 -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="species" class="form-label"><strong>Loài Cây <span class="text-danger">*</span></strong></label>
+                                <select class="form-select" id="species" name="species" required>
+                                    <option value="">-- Chọn loài cây --</option>
+                                    {% for species in species_list %}
+                                    <option value="{{ species.id }}">{{ species.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="code" class="form-label"><strong>Mã Cây <span class="text-danger">*</span></strong></label>
+                                <input type="text" class="form-control" id="code" name="code" placeholder="VD: TREE001" required>
+                            </div>
+                        </div>
+
+                        <!-- Row 2 -->
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="height" class="form-label"><strong>Chiều cao (m) <span class="text-danger">*</span></strong></label>
+                                <input type="number" class="form-control" id="height" name="height" step="0.1" placeholder="VD: 5.5" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="status" class="form-label"><strong>Trạng thái <span class="text-danger">*</span></strong></label>
+                                <select class="form-select" id="status" name="status" required>
+                                    <option value="">-- Chọn trạng thái --</option>
+                                    {% for code, label in status_choices %}
+                                    <option value="{{ code }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="address" class="form-label">Địa chỉ</label>
+                                <input type="text" class="form-control" id="address" name="address" placeholder="Địa chỉ chi tiết">
+                            </div>
+                        </div>
+
+                        <!-- Row 3: Tọa độ GIS -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="latitude" class="form-label"><strong>Vĩ độ (Y) <span class="text-danger">*</span></strong></label>
+                                <input type="number" class="form-control" id="latitude" name="latitude" step="0.000001" placeholder="VD: 10.8231" required>
+                                <small class="text-muted">Tọa độ Y (North-South)</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="longitude" class="form-label"><strong>Kinh độ (X) <span class="text-danger">*</span></strong></label>
+                                <input type="number" class="form-control" id="longitude" name="longitude" step="0.000001" placeholder="VD: 106.6297" required>
+                                <small class="text-muted">Tọa độ X (East-West)</small>
+                            </div>
+                        </div>
+
+                        <!-- Hình ảnh -->
+                        <div class="mb-3">
+                            <label for="image" class="form-label">📷 Hình ảnh cây (tuỳ chọn)</label>
+                            <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                            <small class="text-muted">Định dạng: JPG, PNG, GIF</small>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'tree_list' %}" class="btn btn-secondary">Hủy</a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save"></i> Thêm Cây
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hướng dẫn -->
+        <div class="col-md-4">
+            <div class="card bg-light">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Hướng dẫn</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Thông tin bắt buộc:</strong></p>
+                    <ul class="small">
+                        <li>Loài cây</li>
+                        <li>Mã cây (không trùng lặp)</li>
+                        <li>Chiều cao</li>
+                        <li>Trạng thái</li>
+                        <li>Tọa độ GPS (Vĩ độ & Kinh độ)</li>
+                    </ul>
+
+                    <hr>
+
+                    <p><strong>Lấy tọa độ GPS:</strong></p>
+                    <ol class="small">
+                        <li>Mở Google Maps</li>
+                        <li>Nhấn chuột phải tại vị trí cây</li>
+                        <li>Sao chép tọa độ</li>
+                        <li>Dán vào các trường Vĩ độ & Kinh độ</li>
+                    </ol>
+
+                    <div class="alert alert-info mt-3">
+                        <small><i class="fas fa-lightbulb"></i> Tọa độ đúng sẽ giúp hiển thị chính xác trên bản đồ GIS!</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

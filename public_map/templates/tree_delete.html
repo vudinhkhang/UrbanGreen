@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Xóa Cây {{ tree.code }} - Urban Green GIS{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger">
+                    <h5 class="mb-0 text-white"><i class="fas fa-exclamation-triangle"></i> Xác nhận Xóa</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-center mb-4">
+                        <strong>Bạn có chắc chắn muốn xóa cây này không?</strong>
+                    </p>
+
+                    <div class="alert alert-warning">
+                        <strong>Cây cần xóa:</strong><br>
+                        <i class="fas fa-tree"></i> {{ tree.code }} - {{ tree.species.name }}<br>
+                        <i class="fas fa-map-pin"></i> {{ tree.address }}
+                    </div>
+
+                    <div class="alert alert-danger alert-sm">
+                        <strong>⚠️ Lưu ý:</strong> Hành động này <strong>KHÔNG THỂ HOÀN TÁC</strong>. 
+                        Tất cả dữ liệu liên quan đến cây này cũng sẽ bị xóa.
+                    </div>
+
+                    <form method="post" class="d-grid gap-2 d-md-flex justify-content-md-center">
+                        {% csrf_token %}
+                        <a href="{% url 'tree_detail' tree.id %}" class="btn btn-secondary">Hủy</a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> Xóa Cây
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

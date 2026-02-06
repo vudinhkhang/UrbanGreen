@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Sửa Cây {{ tree.code }} - Urban Green GIS{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1><i class="fas fa-edit"></i> Sửa Thông tin Cây <strong>{{ tree.code }}</strong></h1>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0">📝 Cập nhật Thông tin</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <!-- Row 1 -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="species" class="form-label"><strong>Loài Cây <span class="text-danger">*</span></strong></label>
+                                <select class="form-select" id="species" name="species" required>
+                                    {% for species in species_list %}
+                                    <option value="{{ species.id }}" {% if species.id == tree.species.id %}selected{% endif %}>{{ species.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="code" class="form-label"><strong>Mã Cây <span class="text-danger">*</span></strong></label>
+                                <input type="text" class="form-control" id="code" name="code" value="{{ tree.code }}" required>
+                            </div>
+                        </div>
+
+                        <!-- Row 2 -->
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="height" class="form-label"><strong>Chiều cao (m) <span class="text-danger">*</span></strong></label>
+                                <input type="number" class="form-control" id="height" name="height" step="0.1" value="{{ tree.height }}" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="status" class="form-label"><strong>Trạng thái <span class="text-danger">*</span></strong></label>
+                                <select class="form-select" id="status" name="status" required>
+                                    {% for code, label in status_choices %}
+                                    <option value="{{ code }}" {% if code == tree.status %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="address" class="form-label">Địa chỉ</label>
+                                <input type="text" class="form-control" id="address" name="address" value="{{ tree.address }}">
+                            </div>
+                        </div>
+
+                        <!-- Row 3: Tọa độ GIS -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="latitude" class="form-label"><strong>Vĩ độ (Y) <span class="text-danger">*</span></strong></label>
+                                <input type="number" class="form-control" id="latitude" name="latitude" step="0.000001" value="{{ tree.latitude }}" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="longitude" class="form-label"><strong>Kinh độ (X) <span class="text-danger">*</span></strong></label>
+                                <input type="number" class="form-control" id="longitude" name="longitude" step="0.000001" value="{{ tree.longitude }}" required>
+                            </div>
+                        </div>
+
+                        <!-- Hình ảnh -->
+                        <div class="mb-3">
+                            <label for="image" class="form-label">📷 Hình ảnh cây (tuỳ chọn)</label>
+                            {% if tree.image %}
+                            <div class="mb-2">
+                                <img src="{{ tree.image.url }}" alt="..." style="max-width: 200px; border-radius: 5px;">
+                                <p class="text-muted small">Ảnh hiện tại</p>
+                            </div>
+                            {% endif %}
+                            <input type="file" class="form-control" id="image" name="image" accept="image/*">
+                            <small class="text-muted">Để trống nếu không muốn thay đổi ảnh</small>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'tree_detail' tree.id %}" class="btn btn-secondary">Hủy</a>
+                            <button type="submit" class="btn btn-warning btn-lg">
+                                <i class="fas fa-check"></i> Cập nhật
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Thông tin cây -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-tree"></i> Thông tin Hiện tại</h5>
+                </div>
+                <div class="card-body">
+                    <p>
+                        <strong>Loài cây:</strong><br>
+                        {{ tree.species.name }}
+                    </p>
+                    <p>
+                        <strong>Trạng thái:</strong><br>
+                        <span class="badge {% if tree.status == 'TOT' %}bg-success{% elif tree.status == 'SAU_BENH' %}bg-warning{% else %}bg-danger{% endif %}">
+                            {{ tree.get_status_display }}
+                        </span>
+                    </p>
+                    <p>
+                        <strong>Tọa độ:</strong><br>
+                        Y: {{ tree.latitude }}<br>
+                        X: {{ tree.longitude }}
+                    </p>
+                    <hr>
+                    <a href="{% url 'tree_delete' tree.id %}" class="btn btn-danger w-100">
+                        <i class="fas fa-trash"></i> Xóa Cây
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

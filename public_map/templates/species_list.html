@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Danh sách Loài Cây{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Danh sách Loài Cây</h3>
+        <a href="{% url 'species_add' %}" class="btn btn-success">+ Thêm loài cây</a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            {% if species_list %}
+            <ul class="list-group">
+                {% for s in species_list %}
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div>
+                        <strong>{{ s.name }}</strong><br>
+                        <small class="text-muted">{{ s.characteristics|default:'-' }}</small>
+                    </div>
+                    <div>
+                        <!-- future: edit/delete actions -->
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted">Chưa có loài cây nào. Thêm mới để bắt đầu.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

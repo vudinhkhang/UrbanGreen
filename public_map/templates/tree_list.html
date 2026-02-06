@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Danh sách Cây - Urban Green GIS{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1><i class="fas fa-list"></i> Danh sách Cây Xanh</h1>
+            <p class="text-muted">Tổng cộng: <strong>{{ trees.count }}</strong> cây</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'tree_add' %}" class="btn btn-success btn-lg">
+                <i class="fas fa-plus-circle"></i> Thêm Cây Mới
+            </a>
+        </div>
+    </div>
+
+    <!-- Form Tìm kiếm & Lọc -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-6">
+                    <input type="text" name="q" class="form-control" 
+                           placeholder="Tìm theo tên loài hoặc mã cây..." 
+                           value="{{ query }}">
+                </div>
+                <div class="col-md-4">
+                    <select name="status" class="form-select">
+                        <option value="">-- Tất cả trạng thái --</option>
+                        {% for code, label in status_choices %}
+                        <option value="{{ code }}" {% if status_filter == code %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">🔍 Tìm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Danh sách Cây -->
+    {% if trees %}
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered">
+            <thead class="table-success">
+                <tr>
+                    <th>Mã Cây</th>
+                    <th>Loài</th>
+                    <th>Chiều cao</th>
+                    <th>Trạng thái</th>
+                    <th>Địa chỉ</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tree in trees %}
+                <tr>
+                    <td><strong>{{ tree.code }}</strong></td>
+                    <td>{{ tree.species.name }}</td>
+                    <td>{{ tree.height }}m</td>
+                    <td>
+                        {% if tree.status == 'TOT' %}
+                            <span class="badge bg-success">{{ tree.get_status_display }}</span>
+                        {% elif tree.status == 'SAU_BENH' %}
+                            <span class="badge bg-warning">{{ tree.get_status_display }}</span>
+                        {% else %}
+                            <span class="badge bg-danger">{{ tree.get_status_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td><small>{{ tree.address }}</small></td>
+                    <td>
+                        <a href="{% url 'tree_detail' tree.id %}" class="btn btn-sm btn-info" title="Xem chi tiết">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        <a href="{% url 'tree_edit' tree.id %}" class="btn btn-sm btn-warning" title="Sửa">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{% url 'tree_delete' tree.id %}" class="btn btn-sm btn-danger" title="Xóa">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center">
+        <i class="fas fa-search"></i> Không tìm thấy cây nào phù hợp với điều kiện tìm kiếm.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
