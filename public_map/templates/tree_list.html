@@ -3,14 +3,17 @@
 {% block title %}Danh sách Cây - Urban Green GIS{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <h1><i class="fas fa-list"></i> Danh sách Cây Xanh</h1>
-            <p class="text-muted">Tổng cộng: <strong>{{ trees.count }}</strong> cây</p>
+<div class="container py-4">
+    <div class="page-header">
+        <div>
+            <h2 class="page-title"><i class="fas fa-list"></i> Danh sách Cây Xanh</h2>
+            <p class="page-subtitle">Tổng cộng: <strong>{{ trees.count }}</strong> cây đang quản lý</p>
         </div>
-        <div class="col-md-4 text-end">
-            <a href="{% url 'tree_add' %}" class="btn btn-success btn-lg">
+        <div class="page-actions">
+            <a href="{% url 'species_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-leaf"></i> Loài cây
+            </a>
+            <a href="{% url 'tree_add' %}" class="btn btn-success">
                 <i class="fas fa-plus-circle"></i> Thêm Cây Mới
             </a>
         </div>

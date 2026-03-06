@@ -1,0 +1,31 @@
+<header class="ug-header">
+    <div class="ug-header-inner">
+        <a href="{% url 'home' %}" class="ug-logo">
+            <i class="fas fa-leaf"></i> Urban Green
+        </a>
+        <button class="ug-hamburger" id="ug-menu-toggle" aria-label="Menu">
+            <i class="fas fa-bars"></i>
+        </button>
+        <ul class="ug-nav" id="ug-main-nav">
+            <li><a href="{% url 'home' %}">Trang chủ</a></li>
+            <li><a href="{% url 'map' %}">Bản đồ GIS</a></li>
+            <li><a href="{% url 'tree_list' %}">Quản lý cây</a></li>
+            <li><a href="{% url 'maintenance_list' %}">Lịch chăm sóc</a></li>
+            <li><a href="{% url 'dashboard' %}">Báo cáo</a></li>
+            <li class="ug-user-menu">
+                <a href="#" class="ug-header-btn" onclick="this.parentElement.classList.toggle('open');return false;">
+                    <i class="fas fa-user-circle"></i> {{ user.get_short_name|default:user.username }}
+                </a>
+                <div class="ug-dropdown">
+                    {% if user.is_staff or user.is_superuser %}
+                    <a href="/admin/"><i class="fas fa-cog"></i> Quản trị Admin</a>
+                    {% endif %}
+                    <form method="post" action="{% url 'logout' %}" style="margin:0;">
+                        {% csrf_token %}
+                        <button type="submit"><i class="fas fa-sign-out-alt"></i> Đăng xuất</button>
+                    </form>
+                </div>
+            </li>
+        </ul>
+    </div>
+</header>

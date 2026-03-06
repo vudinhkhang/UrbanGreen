@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+
+{% block title %}Lịch Chăm Sóc - Urban Green GIS{% endblock %}
+
+{% block extra_css %}
+<style>
+    .care-tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border-radius: 12px; overflow: hidden; background: #f3f4f6; padding: 4px; }
+    .care-tab { flex: 1; text-align: center; padding: .75rem 1rem; cursor: pointer; font-weight: 600; font-size: .95rem; border-radius: 10px; transition: all .25s; color: #6b7280; background: transparent; border: none; }
+    .care-tab.active { background: #fff; color: var(--ug-teal); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    .care-tab:hover:not(.active) { color: var(--ug-dark); }
+    .care-tab .tab-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; font-size: .75rem; font-weight: 700; margin-left: 6px; }
+    .care-tab.active .tab-badge { background: var(--ug-teal); color: #fff; }
+    .care-tab:not(.active) .tab-badge { background: #e5e7eb; color: #6b7280; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* AI Stats Bar */
+    .ai-stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .75rem; margin-bottom: 1.2rem; }
+    .ai-stat-card { background: #fff; border-radius: 12px; padding: .9rem 1rem; display: flex; align-items: center; gap: .75rem; box-shadow: 0 1px 4px rgba(0,0,0,.06); border: 1px solid #f3f4f6; }
+    .ai-stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+    .ai-stat-number { font-size: 1.3rem; font-weight: 800; line-height: 1; }
+    .ai-stat-label { font-size: .75rem; color: #9ca3af; margin-top: 2px; }
+
+    /* Grouped Recommendation Cards */
+    .rec-list { display: flex; flex-direction: column; gap: .75rem; }
+    .rec-card {
+        background: #fff; border-radius: 12px; padding: 0;
+        box-shadow: 0 1px 4px rgba(0,0,0,.06); border-left: 4px solid;
+        transition: transform .15s, box-shadow .15s; overflow: hidden;
+    }
+    .rec-card:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+
+    .rec-card-head {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: .8rem 1rem; background: #fafbfc; border-bottom: 1px solid #f3f4f6;
+        gap: .5rem; flex-wrap: wrap;
+    }
+    .rec-tree-id { display: flex; align-items: center; gap: .5rem; }
+    .rec-tree-id .tree-code { font-weight: 700; font-size: .95rem; color: var(--ug-teal); }
+    .rec-tree-id .tree-species { font-size: .85rem; color: #6b7280; }
+    .rec-tree-id .tree-address { font-size: .78rem; color: #9ca3af; }
+    .rec-head-right { display: flex; align-items: center; gap: .5rem; }
+    .issue-count-badge { font-size: .72rem; font-weight: 600; padding: .2rem .55rem; border-radius: 10px; background: #f3f4f6; color: #6b7280; }
+
+    .rec-issues { padding: .4rem 1rem .6rem; }
+    .rec-issue-row {
+        display: flex; align-items: flex-start; gap: .6rem;
+        padding: .5rem 0; border-bottom: 1px solid #f8f9fa;
+    }
+    .rec-issue-row:last-child { border-bottom: none; }
+    .rec-issue-icon {
+        width: 28px; height: 28px; border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: .75rem; color: #fff; flex-shrink: 0; margin-top: 1px;
+    }
+    .rec-issue-body { flex: 1; min-width: 0; }
+    .rec-issue-title { font-weight: 600; font-size: .85rem; color: var(--ug-dark); }
+    .rec-issue-detail { font-size: .78rem; color: #9ca3af; line-height: 1.4; }
+
+    .rec-card-foot {
+        display: flex; align-items: center; gap: .6rem;
+        padding: .5rem 1rem .7rem; 
+    }
+
+    .urgency-badge { font-size: .68rem; font-weight: 700; padding: .2rem .55rem; border-radius: 6px; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
+    .urgency-critical { background: #fef2f2; color: #dc2626; }
+    .urgency-high { background: #fff7ed; color: #ea580c; }
+    .urgency-medium { background: #fffbeb; color: #d97706; }
+
+    .ai-header { display: flex; align-items: center; gap: .6rem; margin-bottom: 1rem; }
+    .ai-sparkle { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 1.1rem; }
+    .ai-label { font-size: .85rem; font-weight: 600; color: #6b7280; }
+    .ai-powered { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-size: .65rem; padding: .15rem .5rem; border-radius: 4px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
+
+    .empty-state { text-align: center; padding: 3rem 1rem; }
+    .empty-state i { font-size: 3rem; margin-bottom: 1rem; display: block; }
+    .empty-state p { color: #9ca3af; font-size: 1rem; }
+
+    .filter-bar { display: flex; gap: .4rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .filter-type-btn { font-size: .78rem; padding: .28rem .7rem; border-radius: 20px; border: 1px solid #e5e7eb; background: #fff; color: #6b7280; cursor: pointer; transition: all .15s; }
+    .filter-type-btn.active, .filter-type-btn:hover { background: var(--ug-teal); color: #fff; border-color: var(--ug-teal); }
+
+    @media (max-width: 767px) {
+        .ai-stats-bar { grid-template-columns: 1fr 1fr; }
+        .rec-card-head { flex-direction: column; align-items: flex-start; }
+        .rec-head-right { align-self: flex-end; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="page-header">
+        <div>
+            <h2 class="page-title"><i class="fas fa-calendar-check"></i> Lịch Chăm Sóc Cây Xanh</h2>
+            <p class="page-subtitle">Quản lý lịch sử và nhận đề xuất chăm sóc thông minh</p>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="care-tabs">
+        <button class="care-tab active" onclick="switchTab('history', this)">
+            <i class="fas fa-history"></i> Lịch sử chăm sóc
+            <span class="tab-badge">{{ logs.count }}</span>
+        </button>
+        <button class="care-tab" onclick="switchTab('ai', this)">
+            <i class="fas fa-wand-magic-sparkles"></i> Chăm sóc đề xuất
+            <span class="tab-badge">{{ ai_stats.total }}</span>
+        </button>
+    </div>
+
+    <!-- ==================== TAB 1: LỊCH SỬ ==================== -->
+    <div id="tab-history" class="tab-content active">
+        <!-- Tìm kiếm & Lọc -->
+        <div class="card mb-3" style="border:1px solid #f3f4f6; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.06);">
+            <div class="card-body py-3">
+                <form method="get" class="row g-2 align-items-center">
+                    <div class="col-md-5">
+                        <input type="text" name="q" class="form-control form-control-sm"
+                               placeholder="Tìm theo mã cây, tên loài, người thực hiện..."
+                               value="{{ query }}">
+                    </div>
+                    <div class="col-md-4">
+                        <select name="action" class="form-select form-select-sm">
+                            <option value="">-- Tất cả công việc --</option>
+                            {% for code, label in action_choices %}
+                            <option value="{{ code }}" {% if action_filter == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i> Tìm</button>
+                        <a href="{% url 'maintenance_list' %}" class="btn btn-outline-secondary btn-sm">Làm mới</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if logs %}
+        <div class="table-responsive" style="border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,.06);">
+            <table class="table table-hover mb-0" style="font-size:.9rem;">
+                <thead style="background:var(--ug-teal); color:#fff;">
+                    <tr>
+                        <th style="font-weight:600;">Ngày</th>
+                        <th style="font-weight:600;">Mã cây</th>
+                        <th style="font-weight:600;">Loài</th>
+                        <th style="font-weight:600;">Công việc</th>
+                        <th style="font-weight:600;">Người thực hiện</th>
+                        <th style="font-weight:600;">Ghi chú</th>
+                        <th style="font-weight:600;">Hồ sơ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.date|date:"d/m/Y" }}</td>
+                        <td><strong>{{ log.tree.code }}</strong></td>
+                        <td>{{ log.tree.species.name }}</td>
+                        <td>
+                            {% if log.action == 'CAT_TIA' %}
+                                <span class="badge bg-info"><i class="fas fa-cut"></i> {{ log.get_action_display }}</span>
+                            {% elif log.action == 'BON_PHAN' %}
+                                <span class="badge bg-success"><i class="fas fa-seedling"></i> {{ log.get_action_display }}</span>
+                            {% elif log.action == 'PHUN_THUOC' %}
+                                <span class="badge bg-warning text-dark"><i class="fas fa-spray-can"></i> {{ log.get_action_display }}</span>
+                            {% elif log.action == 'KIEM_TRA' %}
+                                <span class="badge bg-secondary"><i class="fas fa-clipboard-check"></i> {{ log.get_action_display }}</span>
+                            {% elif log.action == 'TUOI_NUOC' %}
+                                <span class="badge bg-primary"><i class="fas fa-droplet"></i> {{ log.get_action_display }}</span>
+                            {% else %}
+                                <span class="badge bg-dark">{{ log.get_action_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ log.performer }}</td>
+                        <td><small>{{ log.note|default:"-"|truncatewords:10 }}</small></td>
+                        <td>
+                            <a href="{% url 'tree_detail' log.tree.id %}" class="btn btn-sm btn-outline-primary" title="Xem hồ sơ cây">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-clipboard-list" style="color:#d1d5db;"></i>
+            <p>Chưa có lịch chăm sóc nào.<br>
+            Thêm lịch chăm sóc từ <a href="{% url 'tree_list' %}">trang chi tiết từng cây</a>.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ==================== TAB 2: AI ĐỀ XUẤT ==================== -->
+    <div id="tab-ai" class="tab-content">
+        <!-- AI Header -->
+        <div class="ai-header">
+            <i class="fas fa-wand-magic-sparkles ai-sparkle"></i>
+            <span class="ai-label">Phân tích bởi</span>
+            <span class="ai-powered">AI Smart Care</span>
+        </div>
+
+        <!-- Stats -->
+        <div class="ai-stats-bar">
+            <div class="ai-stat-card">
+                <div class="ai-stat-icon" style="background: #ecfdf5;">
+                    <i class="fas fa-tree" style="color: var(--ug-teal);"></i>
+                </div>
+                <div>
+                    <div class="ai-stat-number" style="color: var(--ug-teal);">{{ ai_stats.total }}</div>
+                    <div class="ai-stat-label">Cây cần chú ý</div>
+                </div>
+            </div>
+            <div class="ai-stat-card">
+                <div class="ai-stat-icon" style="background: #f3f4f6;">
+                    <i class="fas fa-list-check" style="color: #6b7280;"></i>
+                </div>
+                <div>
+                    <div class="ai-stat-number">{{ ai_stats.total_issues }}</div>
+                    <div class="ai-stat-label">Tổng vấn đề</div>
+                </div>
+            </div>
+            <div class="ai-stat-card">
+                <div class="ai-stat-icon" style="background: #fef2f2;">
+                    <i class="fas fa-circle-exclamation" style="color: #dc2626;"></i>
+                </div>
+                <div>
+                    <div class="ai-stat-number" style="color: #dc2626;">{{ ai_stats.critical }}</div>
+                    <div class="ai-stat-label">Khẩn cấp</div>
+                </div>
+            </div>
+            <div class="ai-stat-card">
+                <div class="ai-stat-icon" style="background: #fff7ed;">
+                    <i class="fas fa-exclamation-triangle" style="color: #ea580c;"></i>
+                </div>
+                <div>
+                    <div class="ai-stat-number" style="color: #ea580c;">{{ ai_stats.high }}</div>
+                    <div class="ai-stat-label">Ưu tiên cao</div>
+                </div>
+            </div>
+            <div class="ai-stat-card">
+                <div class="ai-stat-icon" style="background: #fffbeb;">
+                    <i class="fas fa-info-circle" style="color: #d97706;"></i>
+                </div>
+                <div>
+                    <div class="ai-stat-number" style="color: #d97706;">{{ ai_stats.medium }}</div>
+                    <div class="ai-stat-label">Trung bình</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter buttons -->
+        <div class="filter-bar">
+            <button class="filter-type-btn active" onclick="filterRec('all', this)">Tất cả</button>
+            <button class="filter-type-btn" onclick="filterRec('inspection', this)"><i class="fas fa-clipboard-check"></i> Kiểm tra</button>
+            <button class="filter-type-btn" onclick="filterRec('watering', this)"><i class="fas fa-droplet"></i> Tưới nước</button>
+            <button class="filter-type-btn" onclick="filterRec('pest', this)"><i class="fas fa-bug"></i> Sâu bệnh</button>
+            <button class="filter-type-btn" onclick="filterRec('health', this)"><i class="fas fa-heart-pulse"></i> Sức khỏe</button>
+            <button class="filter-type-btn" onclick="filterRec('danger', this)"><i class="fas fa-triangle-exclamation"></i> Nguy hiểm</button>
+            <button class="filter-type-btn" onclick="filterRec('fall', this)"><i class="fas fa-wind"></i> Dễ đổ</button>
+            <button class="filter-type-btn" onclick="filterRec('pruning', this)"><i class="fas fa-scissors"></i> Cắt tỉa</button>
+            <button class="filter-type-btn" onclick="filterRec('drought', this)"><i class="fas fa-sun"></i> Hạn hán</button>
+            <button class="filter-type-btn" onclick="filterRec('roots', this)"><i class="fas fa-diagram-project"></i> Rễ xâm lấn</button>
+        </div>
+
+        <!-- Recommendation Cards — grouped by tree -->
+        {% if recommendations %}
+        <div class="rec-list">
+            {% for group in recommendations %}
+            <div class="rec-card" data-types="{% for issue in group.issues %}{{ issue.type }} {% endfor %}" style="border-left-color: {% if group.urgency == 'critical' %}#dc2626{% elif group.urgency == 'high' %}#ea580c{% else %}#d97706{% endif %};">
+                <div class="rec-card-head">
+                    <div class="rec-tree-id">
+                        <span class="tree-code">{{ group.tree.code }}</span>
+                        <span class="tree-species">{{ group.tree.species.name }}</span>
+                        {% if group.tree.address %}<span class="tree-address"><i class="fas fa-map-marker-alt"></i> {{ group.tree.address }}</span>{% endif %}
+                    </div>
+                    <div class="rec-head-right">
+                        <span class="issue-count-badge"><i class="fas fa-exclamation-circle"></i> {{ group.issues|length }} vấn đề</span>
+                        <span class="urgency-badge urgency-{{ group.urgency }}">
+                            {% if group.urgency == 'critical' %}Khẩn cấp
+                            {% elif group.urgency == 'high' %}Ưu tiên cao
+                            {% else %}Trung bình{% endif %}
+                        </span>
+                    </div>
+                </div>
+                <div class="rec-issues">
+                    {% for issue in group.issues %}
+                    <div class="rec-issue-row">
+                        <div class="rec-issue-icon" style="background: {{ issue.color }};">
+                            <i class="fas {{ issue.icon }}"></i>
+                        </div>
+                        <div class="rec-issue-body">
+                            <div class="rec-issue-title">{{ issue.title }}</div>
+                            <div class="rec-issue-detail">{{ issue.detail }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="rec-card-foot">
+                    <a href="{% url 'tree_detail' group.tree.id %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye"></i> Xem hồ sơ
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-check-circle" style="color: var(--ug-teal);"></i>
+            <p>Tuyệt vời! Tất cả cây xanh đều đang được chăm sóc tốt.<br>Không có đề xuất nào vào lúc này.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function switchTab(tab, btn) {
+    document.querySelectorAll('.care-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + tab).classList.add('active');
+}
+
+function filterRec(type, btn) {
+    document.querySelectorAll('.filter-type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.rec-card').forEach(card => {
+        var types = (card.dataset.types || '').split(/\s+/);
+        card.style.display = (type === 'all' || types.includes(type)) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

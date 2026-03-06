@@ -2,11 +2,36 @@
 
 {% block title %}Thêm Cây Mới - Urban Green GIS{% endblock %}
 
+{% block extra_css %}
+<style>
+    #pick-map { height: 450px; border-radius: 8px; border: 2px solid var(--ug-teal); position: relative; }
+    .new-tree-list { max-height: 200px; overflow-y: auto; }
+    .new-tree-item { display: flex; align-items: center; justify-content: space-between; padding: .45rem .7rem; border-radius: 6px; margin-bottom: 4px; background: #f0fdf4; border: 1px solid #bbf7d0; font-size: .88rem; }
+    .new-tree-item .btn-sm { padding: .1rem .4rem; font-size: .75rem; }
+    .new-tree-item .coord-input { width: 110px; padding: .15rem .35rem; font-size: .82rem; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
+    .badge-count { font-size: 1.1rem; }
+    .btn-locate-me {
+        position: absolute; bottom: 12px; left: 12px; z-index: 1000;
+        background: #fff; border: 2px solid rgba(0,0,0,.2); border-radius: 6px;
+        padding: 6px 12px; cursor: pointer; font-size: .85rem; font-weight: 600;
+        color: var(--ug-teal); box-shadow: 0 2px 6px rgba(0,0,0,.15);
+        transition: background .2s;
+    }
+    .btn-locate-me:hover { background: var(--ug-teal); color: #fff; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container">
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <h1><i class="fas fa-plus-circle"></i> Thêm Cây Xanh Mới</h1>
+<div class="container py-4">
+    <div class="page-header">
+        <div>
+            <h2 class="page-title"><i class="fas fa-plus-circle"></i> Thêm Cây Xanh Mới</h2>
+            <p class="page-subtitle">Chọn vị trí trên bản đồ hoặc nhập tọa độ thủ công</p>
+        </div>
+        <div class="page-actions">
+            <a href="{% url 'tree_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-list"></i> Danh sách
+            </a>
         </div>
     </div>
 
@@ -17,8 +42,9 @@
                     <h5 class="mb-0">📋 Thông tin Cây</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" enctype="multipart/form-data">
+                    <form method="post" enctype="multipart/form-data" id="tree-form">
                         {% csrf_token %}
+                        <input type="hidden" name="locations" id="locations-input" value="[]">
 
                         <!-- Row 1 -->
                         <div class="row">
@@ -32,55 +58,93 @@
                                 </select>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label for="code" class="form-label"><strong>Mã Cây <span class="text-danger">*</span></strong></label>
-                                <input type="text" class="form-control" id="code" name="code" placeholder="VD: TREE001" required>
+                                <label for="code" class="form-label"><strong>Mã Cây (tiền tố) <span class="text-danger">*</span></strong></label>
+                                <input type="text" class="form-control" id="code" name="code" placeholder="VD: CX hoặc TREE" required>
+                                <small class="text-muted">Chỉ cần nhập tiền tố, số thứ tự sẽ tự tăng (VD: CX → CX001, CX002...)</small>
                             </div>
                         </div>
 
                         <!-- Row 2 -->
                         <div class="row">
                             <div class="col-md-4 mb-3">
-                                <label for="height" class="form-label"><strong>Chiều cao (m) <span class="text-danger">*</span></strong></label>
+                                <label for="height" class="form-label"><strong>Chiều cao trung bình (m) <span class="text-danger">*</span></strong></label>
                                 <input type="number" class="form-control" id="height" name="height" step="0.1" placeholder="VD: 5.5" required>
+                                <small class="text-muted">Chiều cao mặc định cho mỗi cây. Có thể sửa từng cây bên dưới.</small>
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label for="status" class="form-label"><strong>Trạng thái <span class="text-danger">*</span></strong></label>
-                                <select class="form-select" id="status" name="status" required>
-                                    <option value="">-- Chọn trạng thái --</option>
+                                <label class="form-label"><strong>Trạng thái mặc định</strong></label>
+                                <select class="form-select" id="default-status">
                                     {% for code, label in status_choices %}
-                                    <option value="{{ code }}">{{ label }}</option>
+                                    <option value="{{ code }}"{% if code == 'TOT' %} selected{% endif %}>{{ label }}</option>
                                     {% endfor %}
                                 </select>
+                                <small class="text-muted">Trạng thái áp dụng khi thêm cây mới. Có thể sửa từng cây bên dưới.</small>
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label for="address" class="form-label">Địa chỉ</label>
-                                <input type="text" class="form-control" id="address" name="address" placeholder="Địa chỉ chi tiết">
+                                <input type="text" class="form-control" id="address" name="address" placeholder="Địa chỉ chi tiết (VD: Đường Lê Văn Sỹ)">
                             </div>
                         </div>
 
-                        <!-- Row 3: Tọa độ GIS -->
-                        <div class="row">
-                            <div class="col-md-6 mb-3">
-                                <label for="latitude" class="form-label"><strong>Vĩ độ (Y) <span class="text-danger">*</span></strong></label>
-                                <input type="number" class="form-control" id="latitude" name="latitude" step="0.000001" placeholder="VD: 10.8231" required>
-                                <small class="text-muted">Tọa độ Y (North-South)</small>
+                        <!-- Bản đồ chọn tọa độ -->
+                        <div class="mb-3">
+                            <label class="form-label"><strong><i class="fas fa-map-marker-alt"></i> Chọn vị trí trên bản đồ</strong></label>
+                            <div id="pick-map">
+                                <button type="button" class="btn-locate-me" onclick="locateMe()">
+                                    <i class="fas fa-crosshairs"></i> Vị trí của tôi
+                                </button>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label for="longitude" class="form-label"><strong>Kinh độ (X) <span class="text-danger">*</span></strong></label>
-                                <input type="number" class="form-control" id="longitude" name="longitude" step="0.000001" placeholder="VD: 106.6297" required>
-                                <small class="text-muted">Tọa độ X (East-West)</small>
+                            <small class="text-muted">
+                                <i class="fas fa-mouse-pointer"></i> Click bản đồ để đặt cây mới. Có thể click nhiều lần để thêm nhiều cây cùng lúc.
+                                <span style="color:var(--ug-teal);">●</span> Cây cũ &nbsp;
+                                <span style="color:#e74c3c;">★</span> Cây mới
+                            </small>
+                        </div>
+
+                        <!-- Nhập tọa độ bằng tay -->
+                        <div class="mb-3">
+                            <label class="form-label"><strong><i class="fas fa-keyboard"></i> Hoặc nhập tọa độ thủ công</strong></label>
+                            <div class="input-group">
+                                <span class="input-group-text">Lat</span>
+                                <input type="number" class="form-control" id="manual-lat" step="0.000001" placeholder="VD: 10.823100">
+                                <span class="input-group-text">Lng</span>
+                                <input type="number" class="form-control" id="manual-lng" step="0.000001" placeholder="VD: 106.629700">
+                                <button type="button" class="btn btn-success" onclick="addManualCoord()">
+                                    <i class="fas fa-plus"></i> Thêm
+                                </button>
                             </div>
+                        </div>
+
+                        <!-- Danh sách cây mới đã chọn -->
+                        <div class="mb-3" id="new-trees-panel" style="display:none;">
+                            <label class="form-label"><strong><i class="fas fa-list-ol"></i> Vị trí đã chọn (<span id="new-count">0</span> cây)</strong></label>
+                            <div class="new-tree-list" id="new-tree-list"></div>
+                        </div>
+
+                        <!-- Chiều cao từng cây -->
+                        <div class="mb-3" id="heights-panel" style="display:none;">
+                            <label class="form-label"><strong><i class="fas fa-ruler-vertical"></i> Chiều cao từng cây (m)</strong></label>
+                            <div id="heights-list"></div>
+                        </div>
+
+                        <!-- Trạng thái từng cây -->
+                        <div class="mb-3" id="statuses-panel" style="display:none;">
+                            <label class="form-label"><strong><i class="fas fa-heartbeat"></i> Trạng thái từng cây</strong></label>
+                            <div id="statuses-list"></div>
                         </div>
 
                         <!-- Hình ảnh -->
-                        <div class="mb-3">
-                            <label for="image" class="form-label">📷 Hình ảnh cây (tuỳ chọn)</label>
-                            <input type="file" class="form-control" id="image" name="image" accept="image/*">
-                            <small class="text-muted">Định dạng: JPG, PNG, GIF</small>
+                        <div class="mb-3" id="images-panel">
+                            <label class="form-label">📷 <strong>Hình ảnh cây (tuỳ chọn)</strong></label>
+                            <div id="images-list"></div>
+                            <small class="text-muted">Mỗi ảnh tương ứng với 1 cây theo thứ tự. Định dạng: JPG, PNG, GIF</small>
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
                             <a href="{% url 'tree_list' %}" class="btn btn-secondary">Hủy</a>
+                            <button type="button" class="btn btn-outline-danger" id="btn-clear-all" style="display:none;" onclick="clearAllNew()">
+                                <i class="fas fa-trash"></i> Xóa tất cả
+                            </button>
                             <button type="submit" class="btn btn-success btn-lg">
                                 <i class="fas fa-save"></i> Thêm Cây
                             </button>
@@ -97,31 +161,298 @@
                     <h5 class="mb-0"><i class="fas fa-info-circle"></i> Hướng dẫn</h5>
                 </div>
                 <div class="card-body">
-                    <p><strong>Thông tin bắt buộc:</strong></p>
-                    <ul class="small">
-                        <li>Loài cây</li>
-                        <li>Mã cây (không trùng lặp)</li>
-                        <li>Chiều cao</li>
-                        <li>Trạng thái</li>
-                        <li>Tọa độ GPS (Vĩ độ & Kinh độ)</li>
-                    </ul>
-
-                    <hr>
-
-                    <p><strong>Lấy tọa độ GPS:</strong></p>
+                    <p><strong>Cách thêm nhiều cây:</strong></p>
                     <ol class="small">
-                        <li>Mở Google Maps</li>
-                        <li>Nhấn chuột phải tại vị trí cây</li>
-                        <li>Sao chép tọa độ</li>
-                        <li>Dán vào các trường Vĩ độ & Kinh độ</li>
+                        <li>Chọn loài cây, nhập tiền tố mã (VD: <code>CX</code>)</li>
+                        <li>Chọn chiều cao &amp; trạng thái chung</li>
+                        <li>Click nhiều vị trí trên bản đồ</li>
+                        <li>Mã cây tự tạo: CX001, CX002...</li>
+                        <li>Bấm <strong>Thêm Cây</strong> để lưu tất cả</li>
                     </ol>
-
-                    <div class="alert alert-info mt-3">
-                        <small><i class="fas fa-lightbulb"></i> Tọa độ đúng sẽ giúp hiển thị chính xác trên bản đồ GIS!</small>
-                    </div>
+                    <hr>
+                    <p><strong>Chú thích bản đồ:</strong></p>
+                    <ul class="small">
+                        <li><span style="color:var(--ug-teal);">● Marker xanh</span> — Cây đã có</li>
+                        <li><span style="color:#e74c3c;">★ Marker đỏ</span> — Cây mới (kéo được)</li>
+                    </ul>
+                    <hr>
+                    <p><strong>Sửa tọa độ:</strong></p>
+                    <ul class="small">
+                        <li>Nhập tọa độ thủ công bằng ô <strong>Lat/Lng</strong></li>
+                        <li>Kéo marker đỏ trên bản đồ</li>
+                        <li>Sửa trực tiếp tọa độ trong danh sách</li>
+                    </ul>
+                    <hr>
+                    <p class="small text-muted"><i class="fas fa-lightbulb"></i> Click vào marker đỏ để xóa cây mới đó khỏi danh sách.</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    var pickMap = L.map('pick-map').setView([10.8231, 106.6297], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(pickMap);
+
+    // === Icon cây cũ (xanh, tròn nhỏ) ===
+    var existingIcon = L.divIcon({
+        html: '<div style="width:12px;height:12px;background:#1abc9c;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.3);"></div>',
+        className: '',
+        iconSize: [12, 12],
+        iconAnchor: [6, 6]
+    });
+
+    // === Icon cây mới (đỏ, hình sao lớn hơn) ===
+    var newTreeIcon = L.divIcon({
+        html: '<div style="width:28px;height:28px;background:#e74c3c;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(231,76,60,.5);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:bold;">★</div>',
+        className: '',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+    });
+
+    // Hiển thị cây cũ
+    var existingTrees = {{ existing_json|safe }};
+    existingTrees.forEach(function(t) {
+        var statusLabel = t.status === 'SAU_BENH' ? 'Sâu bệnh' : t.status === 'NGUY_HIEM' ? 'Nguy hiểm' : 'Tốt';
+        L.marker([t.lat, t.long], { icon: existingIcon })
+         .addTo(pickMap)
+         .bindPopup('<b>' + t.code + '</b><br>' + t.name + '<br>Trạng thái: ' + statusLabel);
+    });
+
+    // === Quản lý cây mới ===
+    var newTrees = []; // [{lat, lng, marker}]
+
+    pickMap.on('click', function(e) {
+        addNewTree(e.latlng.lat, e.latlng.lng);
+    });
+
+    function addNewTree(lat, lng) {
+        var idx = newTrees.length;
+        var m = L.marker([lat, lng], { icon: newTreeIcon, draggable: true }).addTo(pickMap);
+
+        // Click marker mới → xóa
+        m.on('click', function() {
+            removeNewTree(idx);
+        });
+
+        // Kéo marker → cập nhật tọa độ
+        m.on('dragend', function(ev) {
+            var pos = ev.target.getLatLng();
+            newTrees[idx].lat = pos.lat;
+            newTrees[idx].lng = pos.lng;
+            updateUI();
+        });
+
+        m.bindTooltip('Cây mới #' + (idx + 1), { direction: 'top', offset: [0, -14] });
+
+        var defStatus = document.getElementById('default-status').value;
+        var defHeight = parseFloat(document.getElementById('height').value) || 0;
+        newTrees.push({ lat: lat, lng: lng, marker: m, status: defStatus, statusChanged: false, height: defHeight, heightChanged: false });
+        updateUI();
+    }
+
+    function removeNewTree(idx) {
+        if (idx >= 0 && idx < newTrees.length && newTrees[idx]) {
+            pickMap.removeLayer(newTrees[idx].marker);
+            newTrees.splice(idx, 1);
+            // Re-index tooltips
+            newTrees.forEach(function(t, i) {
+                t.marker.unbindTooltip();
+                t.marker.bindTooltip('Cây mới #' + (i + 1), { direction: 'top', offset: [0, -14] });
+                // Re-bind click with correct index
+                t.marker.off('click');
+                t.marker.on('click', function() { removeNewTree(i); });
+            });
+            updateUI();
+        }
+    }
+
+    function clearAllNew() {
+        newTrees.forEach(function(t) { pickMap.removeLayer(t.marker); });
+        newTrees = [];
+        updateUI();
+    }
+
+    function updateUI() {
+        var panel = document.getElementById('new-trees-panel');
+        var list = document.getElementById('new-tree-list');
+        var countEl = document.getElementById('new-count');
+        var clearBtn = document.getElementById('btn-clear-all');
+        var prefix = document.getElementById('code').value || '???';
+
+        countEl.textContent = newTrees.length;
+
+        if (newTrees.length > 0) {
+            panel.style.display = 'block';
+            clearBtn.style.display = 'inline-block';
+        } else {
+            panel.style.display = 'none';
+            clearBtn.style.display = 'none';
+        }
+
+        var html = '';
+        newTrees.forEach(function(t, i) {
+            html += '<div class="new-tree-item">'
+                + '<span><strong>' + prefix + String(i + 1).padStart(3, '0') + '</strong> — '
+                + '<input type="number" class="coord-input" value="' + t.lat.toFixed(6) + '" step="0.000001" onchange="editCoord(' + i + ',\'lat\',this.value)" title="Latitude"> , '
+                + '<input type="number" class="coord-input" value="' + t.lng.toFixed(6) + '" step="0.000001" onchange="editCoord(' + i + ',\'lng\',this.value)" title="Longitude">'
+                + '</span>'
+                + '<button type="button" class="btn btn-outline-danger btn-sm" onclick="removeNewTree(' + i + ')">'
+                + '<i class="fas fa-times"></i></button>'
+                + '</div>';
+        });
+        list.innerHTML = html;
+
+        // Cập nhật hidden input
+        var locs = newTrees.map(function(t) { return { lat: t.lat, lng: t.lng }; });
+        document.getElementById('locations-input').value = JSON.stringify(locs);
+
+        // Cập nhật chiều cao từng cây
+        var heightsPanel = document.getElementById('heights-panel');
+        var heightsList = document.getElementById('heights-list');
+        var defaultHeight = parseFloat(document.getElementById('height').value) || 0;
+        var hHtml = '';
+        if (newTrees.length > 0) {
+            heightsPanel.style.display = 'block';
+            newTrees.forEach(function(t, i) {
+                var curH = t.height || defaultHeight;
+                hHtml += '<div class="input-group mb-2">'
+                    + '<span class="input-group-text" style="font-size:.85rem;min-width:90px;"><i class="fas fa-ruler-vertical"></i>&nbsp;' + prefix + String(i + 1).padStart(3, '0') + '</span>'
+                    + '<input type="number" class="form-control" name="heights" step="0.1" value="' + curH + '" onchange="updateTreeHeight(' + i + ', this.value)">'
+                    + '<span class="input-group-text">m</span>'
+                    + '</div>';
+            });
+        } else {
+            heightsPanel.style.display = 'none';
+        }
+        heightsList.innerHTML = hHtml;
+
+        // Cập nhật trạng thái từng cây
+        var statusPanel = document.getElementById('statuses-panel');
+        var statusList = document.getElementById('statuses-list');
+        var defaultStatus = document.getElementById('default-status').value;
+        var statusOptions = '';
+        document.getElementById('default-status').querySelectorAll('option').forEach(function(opt) {
+            statusOptions += '<option value="' + opt.value + '">' + opt.textContent + '</option>';
+        });
+        var stHtml = '';
+        if (newTrees.length > 0) {
+            statusPanel.style.display = 'block';
+            newTrees.forEach(function(t, i) {
+                var curVal = t.status || defaultStatus;
+                var opts = statusOptions.replace('value="' + curVal + '"', 'value="' + curVal + '" selected');
+                stHtml += '<div class="input-group mb-2">'
+                    + '<span class="input-group-text" style="font-size:.85rem;min-width:90px;"><i class="fas fa-heartbeat"></i>&nbsp;' + prefix + String(i + 1).padStart(3, '0') + '</span>'
+                    + '<select class="form-select" name="statuses" onchange="updateTreeStatus(' + i + ', this.value)">' + opts + '</select>'
+                    + '</div>';
+            });
+        } else {
+            statusPanel.style.display = 'none';
+        }
+        statusList.innerHTML = stHtml;
+
+        // Cập nhật danh sách input ảnh
+        var imgList = document.getElementById('images-list');
+        var imgHtml = '';
+        if (newTrees.length === 0) {
+            imgHtml = '<input type="file" class="form-control" name="images" accept="image/*">';
+        } else {
+            newTrees.forEach(function(t, i) {
+                imgHtml += '<div class="input-group mb-2">'
+                    + '<span class="input-group-text" style="font-size:.85rem;min-width:90px;"><i class="fas fa-camera"></i>&nbsp;' + prefix + String(i + 1).padStart(3, '0') + '</span>'
+                    + '<input type="file" class="form-control" name="images" accept="image/*">'
+                    + '</div>';
+            });
+        }
+        imgList.innerHTML = imgHtml;
+    }
+
+    // Khi thay đổi prefix → cập nhật danh sách hiển thị
+    document.getElementById('code').addEventListener('input', updateUI);
+    document.getElementById('default-status').addEventListener('change', function() {
+        // Áp dụng trạng thái mặc định cho cây chưa thay đổi
+        var val = this.value;
+        newTrees.forEach(function(t) {
+            if (!t.statusChanged) t.status = val;
+        });
+        updateUI();
+    });
+    document.getElementById('height').addEventListener('input', function() {
+        var val = parseFloat(this.value) || 0;
+        newTrees.forEach(function(t) {
+            if (!t.heightChanged) t.height = val;
+        });
+        updateUI();
+    });
+
+    function updateTreeStatus(idx, val) {
+        newTrees[idx].status = val;
+        newTrees[idx].statusChanged = true;
+    }
+
+    function updateTreeHeight(idx, val) {
+        newTrees[idx].height = parseFloat(val) || 0;
+        newTrees[idx].heightChanged = true;
+    }
+
+    function addManualCoord() {
+        var latEl = document.getElementById('manual-lat');
+        var lngEl = document.getElementById('manual-lng');
+        var lat = parseFloat(latEl.value);
+        var lng = parseFloat(lngEl.value);
+        if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+            alert('Tọa độ không hợp lệ! Latitude: -90 đến 90, Longitude: -180 đến 180.');
+            return;
+        }
+        addNewTree(lat, lng);
+        pickMap.setView([lat, lng], 16);
+        latEl.value = '';
+        lngEl.value = '';
+    }
+
+    function editCoord(idx, field, val) {
+        var v = parseFloat(val);
+        if (isNaN(v)) return;
+        if (field === 'lat' && (v < -90 || v > 90)) return;
+        if (field === 'lng' && (v < -180 || v > 180)) return;
+        newTrees[idx][field] = v;
+        newTrees[idx].marker.setLatLng([newTrees[idx].lat, newTrees[idx].lng]);
+        // Cập nhật hidden input
+        var locs = newTrees.map(function(t) { return { lat: t.lat, lng: t.lng }; });
+        document.getElementById('locations-input').value = JSON.stringify(locs);
+    }
+
+    // Locate me
+    var locateMarker = null;
+    function locateMe() {
+        if (!navigator.geolocation) {
+            alert('Trình duyệt không hỗ trợ định vị!');
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            var lat = pos.coords.latitude;
+            var lng = pos.coords.longitude;
+            pickMap.setView([lat, lng], 17);
+            if (locateMarker) pickMap.removeLayer(locateMarker);
+            locateMarker = L.circleMarker([lat, lng], {
+                radius: 8, fillColor: '#4285F4', color: '#fff',
+                weight: 3, fillOpacity: 1
+            }).addTo(pickMap).bindPopup('📍 Vị trí của bạn').openPopup();
+        }, function(err) {
+            alert('Không thể xác định vị trí: ' + err.message);
+        }, { enableHighAccuracy: true });
+    }
+
+    // Validate form
+    document.getElementById('tree-form').addEventListener('submit', function(e) {
+        if (newTrees.length === 0) {
+            e.preventDefault();
+            alert('Vui lòng click trên bản đồ để chọn ít nhất 1 vị trí cây!');
+        }
+    });
+</script>
 {% endblock %}

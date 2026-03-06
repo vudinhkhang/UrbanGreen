@@ -3,8 +3,19 @@
 {% block title %}Xóa Cây {{ tree.code }} - Urban Green GIS{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row justify-content-center mt-5">
+<div class="container py-4">
+    <div class="page-header">
+        <div>
+            <h2 class="page-title"><i class="fas fa-exclamation-triangle" style="color:#e74c3c;"></i> Xóa Cây {{ tree.code }}</h2>
+            <p class="page-subtitle">Xác nhận xóa cây khỏi hệ thống</p>
+        </div>
+        <div class="page-actions">
+            <a href="{% url 'tree_detail' tree.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Quay lại
+            </a>
+        </div>
+    </div>
+    <div class="row justify-content-center">
         <div class="col-md-6">
             <div class="card border-danger">
                 <div class="card-header bg-danger">

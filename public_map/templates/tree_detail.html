@@ -3,18 +3,21 @@
 {% block title %}Chi tiết Cây {{ tree.code }} - Urban Green GIS{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <a href="{% url 'home' %}" class="btn btn-secondary mb-3">← Quay lại Bản đồ</a>
-            <h1><i class="fas fa-tree"></i> Hồ sơ Cây Số {{ tree.code }}</h1>
+<div class="container py-4">
+    <div class="page-header">
+        <div>
+            <h2 class="page-title"><i class="fas fa-tree"></i> Hồ sơ Cây Số {{ tree.code }}</h2>
+            <p class="page-subtitle">{{ tree.species.name }} — {{ tree.address }}</p>
         </div>
-        <div class="col-md-4 text-end">
+        <div class="page-actions">
+            <a href="{% url 'map' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-map"></i> Bản đồ
+            </a>
+            <a href="{% url 'tree_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-list"></i> Danh sách
+            </a>
             <a href="{% url 'tree_edit' tree.id %}" class="btn btn-warning">
                 <i class="fas fa-edit"></i> Sửa
-            </a>
-            <a href="{% url 'tree_list' %}" class="btn btn-info">
-                <i class="fas fa-list"></i> Danh sách
             </a>
         </div>
     </div>
@@ -48,6 +51,19 @@
                             <li class="list-group-item"><strong>Trạng thái:</strong> {{ tree.get_status_display }}</li>
                             <li class="list-group-item"><strong>Địa chỉ:</strong> {{ tree.address }}</li>
                             <li class="list-group-item"><strong>Đặc tính:</strong> {{ tree.species.characteristics }}</li>
+                            <li class="list-group-item">
+                                <strong>Cảnh báo:</strong>
+                                <div class="mt-1" style="display:flex;flex-wrap:wrap;gap:4px;">
+                                    {% if tree.species.is_pest_prone %}<span class="badge bg-warning text-dark"><i class="fas fa-bug"></i> Sâu bệnh</span>{% endif %}
+                                    {% if tree.species.is_fall_prone %}<span class="badge bg-danger"><i class="fas fa-wind"></i> Dễ đổ</span>{% endif %}
+                                    {% if tree.species.is_fast_growing %}<span class="badge bg-success"><i class="fas fa-arrows-up-down"></i> Mọc nhanh</span>{% endif %}
+                                    {% if tree.species.is_drought_sensitive %}<span class="badge bg-info"><i class="fas fa-sun"></i> Nhạy hạn</span>{% endif %}
+                                    {% if tree.species.is_invasive_roots %}<span class="badge bg-secondary"><i class="fas fa-diagram-project"></i> Rễ xâm lấn</span>{% endif %}
+                                    {% if not tree.species.is_pest_prone and not tree.species.is_fall_prone and not tree.species.is_fast_growing and not tree.species.is_drought_sensitive and not tree.species.is_invasive_roots %}
+                                    <span class="text-muted">Không có</span>
+                                    {% endif %}
+                                </div>
+                            </li>
                         </ul>
                     </div>
                 </div>
@@ -176,6 +192,19 @@
                             <div class="mb-3">
                                 <label for="performer" class="form-label"><strong>Người thực hiện <span class="text-danger">*</span></strong></label>
                                 <input type="text" class="form-control" id="performer" name="performer" placeholder="Nhập tên người làm" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="new_status" class="form-label"><strong>Cập nhật trạng thái cây</strong></label>
+                                <select class="form-select" id="new_status" name="new_status">
+                                    <option value="">-- Giữ nguyên ({{ tree.get_status_display }}) --</option>
+                                    {% for code, label in status_choices %}
+                                    {% if code != tree.status %}
+                                    <option value="{{ code }}">{{ label }}</option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Chọn nếu muốn thay đổi trạng thái sau chăm sóc</small>
                             </div>
 
                             <div class="mb-3">

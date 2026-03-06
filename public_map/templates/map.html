@@ -1,0 +1,871 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Bản đồ GIS - Urban Green{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Map fills available viewport */
+    .map-wrap { position: relative; }
+    #map {
+        height: calc(100vh - 160px);
+        min-height: 480px;
+        border-radius: 10px;
+        box-shadow: 0 2px 12px rgba(0,0,0,.12);
+    }
+
+    /* Floating controls on the map */
+    .map-overlay {
+        position: absolute; z-index: 800; pointer-events: none;
+    }
+    .map-overlay > * { pointer-events: auto; }
+
+    /* Search bar overlay — top of map */
+    .map-search {
+        top: 12px; left: 12px; right: auto; width: auto; max-width: 460px;
+    }
+    .map-search .card {
+        background: rgba(255,255,255,.95);
+        backdrop-filter: blur(6px);
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,.12);
+        border-radius: 10px;
+    }
+    .map-search .card-body { padding: .6rem .9rem; }
+
+    /* Stat badges top-right */
+    .map-stats {
+        top: 12px; right: 60px;
+        display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+    }
+    .stat-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(255,255,255,.92); backdrop-filter: blur(6px);
+        padding: .35rem .8rem; border-radius: 20px; font-size: .82rem;
+        font-weight: 600; box-shadow: 0 1px 6px rgba(0,0,0,.1);
+        color: #374151;
+    }
+    .stat-pill .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* Route panel — bottom-right */
+    .map-route {
+        bottom: 16px; right: 12px; width: 300px;
+    }
+    .map-route .card {
+        background: rgba(255,255,255,.95);
+        backdrop-filter: blur(6px);
+        border: none; border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,.12);
+    }
+    .map-route .card-body { padding: .7rem .9rem; }
+
+    #route-info { display: none; }
+    #route-info.active { display: block; }
+
+    /* Popup */
+    .tree-popup { min-width: 180px; }
+    .tree-popup .tp-title { font-weight: 700; font-size: .95rem; margin-bottom: 4px; color: var(--ug-dark); }
+    .tree-popup .tp-row { font-size: .82rem; color: #6b7280; line-height: 1.6; }
+    .tree-popup .tp-actions { display: flex; gap: 5px; margin-top: 8px; }
+    .tree-popup .tp-actions .btn { font-size: .75rem; padding: .25rem .55rem; }
+
+    /* Legend — bottom-left */
+    .map-legend {
+        bottom: 16px; left: 12px;
+    }
+    .legend-box {
+        background: rgba(255,255,255,.92); backdrop-filter: blur(6px);
+        padding: .5rem .8rem; border-radius: 10px; font-size: .78rem;
+        box-shadow: 0 1px 6px rgba(0,0,0,.1);
+        display: flex; gap: 12px; align-items: center; color: #374151;
+    }
+    .legend-item { display: flex; align-items: center; gap: 4px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 3px rgba(0,0,0,.2); }
+
+    /* Geocoder */
+    .map-geocoder {
+        top: 62px; left: 12px; right: auto; width: auto; max-width: 380px;
+    }
+    .map-geocoder .card {
+        background: rgba(255,255,255,.95); backdrop-filter: blur(6px);
+        border: none; border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,.12);
+    }
+    .map-geocoder .card-body { padding: .5rem .8rem; }
+    .geo-results { max-height: 200px; overflow-y: auto; margin-top: .4rem; }
+    .geo-results .list-group-item { font-size: .8rem; padding: .4rem .7rem; cursor: pointer; border: none; border-bottom: 1px solid #f3f4f6; }
+    .geo-results .list-group-item:hover { background: #ecfdf5; color: var(--ug-teal-dark); }
+
+    /* Tools panel — right side */
+    .map-tools {
+        top: 130px; right: 12px; width: 220px;
+        max-height: calc(100% - 200px); overflow-y: auto;
+    }
+    .map-tools .card {
+        background: rgba(255,255,255,.95); backdrop-filter: blur(6px);
+        border: none; border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,.12);
+    }
+    .map-tools .card-body { padding: .6rem .8rem; }
+    .tool-section { margin-bottom: .5rem; }
+    .tool-section:last-child { margin-bottom: 0; }
+    .tool-label { font-size: .72rem; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; margin-bottom: .3rem; }
+    .tool-btn { font-size: .78rem; padding: .3rem .5rem; }
+
+    /* Radius info */
+    #radius-info { display: none; font-size: .78rem; }
+    #radius-info.active { display: block; }
+
+    /* Zone form */
+    #zone-form { display: none; }
+    #zone-form.active { display: block; }
+    #zone-list .zone-item { display: flex; justify-content: space-between; align-items: center; font-size: .78rem; padding: .25rem 0; border-bottom: 1px solid #f3f4f6; }
+    #zone-list .zone-item:last-child { border-bottom: none; }
+
+    @media (max-width: 767px) {
+        #map { height: calc(100vh - 140px); min-height: 350px; }
+        .map-route { width: 240px; }
+        .map-stats { display: none; }
+        .map-search { max-width: calc(100% - 24px); }
+        .map-search input[name="q"] { max-width: 120px !important; }
+        .map-search select[name="status"] { max-width: 110px !important; }
+        .map-geocoder { max-width: calc(100% - 24px); top: 58px; }
+        .map-tools { width: 180px; top: 110px; right: 8px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-3 py-3">
+    <div class="page-header" style="margin-bottom:.8rem; padding-bottom:.6rem;">
+        <div>
+            <h2 class="page-title"><i class="fas fa-map"></i> Bản đồ Cây Xanh GIS</h2>
+        </div>
+        <div class="page-actions">
+            <a href="{% url 'tree_add' %}" class="btn btn-success btn-sm">
+                <i class="fas fa-plus-circle"></i> Thêm cây
+            </a>
+        </div>
+    </div>
+
+    <div class="map-wrap">
+        <div id="map"></div>
+
+        <!-- Search overlay — top-left -->
+        <div class="map-overlay map-search">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="d-flex gap-2 align-items-center" style="flex-wrap:nowrap;">
+                        <input type="text" name="q" class="form-control form-control-sm"
+                               placeholder="Tìm mã cây, loài..." value="{{ query }}" style="width:160px;min-width:100px;">
+                        <select name="status" class="form-select form-select-sm" style="width:130px;min-width:90px;">
+                            <option value="">Tất cả</option>
+                            <option value="TOT" {% if status_filter == 'TOT' %}selected{% endif %}>🟢 Tốt</option>
+                            <option value="SAU_BENH" {% if status_filter == 'SAU_BENH' %}selected{% endif %}>🟡 Sâu bệnh</option>
+                            <option value="NGUY_HIEM" {% if status_filter == 'NGUY_HIEM' %}selected{% endif %}>🔴 Nguy hiểm</option>
+                        </select>
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i></button>
+                        {% if query or status_filter %}
+                        <a href="{% url 'map' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-times"></i></a>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats — top-right -->
+        <div class="map-overlay map-stats">
+            <span class="stat-pill"><i class="fas fa-tree" style="color:var(--ug-teal);"></i> <span id="total-trees">0</span> cây</span>
+        </div>
+
+        <!-- Geocoder — tìm địa chỉ -->
+        <div class="map-overlay map-geocoder">
+            <div class="card">
+                <div class="card-body">
+                    <div class="d-flex gap-2">
+                        <input type="text" id="geo-input" class="form-control form-control-sm" placeholder="Tìm địa chỉ..." style="font-size:.82rem;">
+                        <button class="btn btn-sm btn-outline-primary" onclick="geocodeSearch()" id="geo-btn"><i class="fas fa-map-marker-alt"></i></button>
+                    </div>
+                    <div id="geo-results" class="geo-results" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend — bottom-left (dynamic) -->
+        <div class="map-overlay map-legend">
+            <div class="legend-box" style="flex-direction:column;align-items:flex-start;gap:2px;">
+                <span class="legend-item"><span class="legend-dot" style="background:#1abc9c;"></span> Tốt <small id="cnt-tot" class="text-muted">(0)</small></span>
+                <span class="legend-item"><span class="legend-dot" style="background:#f39c12;"></span> Sâu bệnh <small id="cnt-sb" class="text-muted">(0)</small></span>
+                <span class="legend-item"><span class="legend-dot" style="background:#e74c3c;"></span> Nguy hiểm <small id="cnt-nh" class="text-muted">(0)</small></span>
+                <hr class="w-100 my-1">
+                <span class="legend-item" id="legend-heat" style="display:none;">
+                    <span class="legend-dot" style="background:linear-gradient(90deg,#00f,#0f0,#ff0,#f00);width:30px;border-radius:3px;"></span> Heatmap
+                </span>
+                <span class="legend-item" id="legend-zone" style="display:none;">
+                    <span class="legend-dot" style="background:rgba(26,188,156,.35);border:2px solid #1abc9c;"></span> Vùng quản lý
+                </span>
+                <span class="legend-item" id="legend-radius" style="display:none;">
+                    <span class="legend-dot" style="background:rgba(52,152,219,.2);border:2px solid #3498db;"></span> Vùng bán kính
+                </span>
+            </div>
+        </div>
+
+        <!-- Tools panel — right side -->
+        <div class="map-overlay map-tools">
+            <div class="card">
+                <div class="card-body">
+                    <!-- Heatmap toggle -->
+                    <div class="tool-section">
+                        <div class="tool-label">Heatmap</div>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="toggle-heat">
+                            <label class="form-check-label" for="toggle-heat" style="font-size:.78rem;">Hiện heatmap</label>
+                        </div>
+                    </div>
+
+                    <!-- Radius search -->
+                    <div class="tool-section">
+                        <div class="tool-label">Tìm theo bán kính</div>
+                        <div class="d-flex gap-2 align-items-center mb-1">
+                            <input type="number" id="radius-val" class="form-control form-control-sm" value="200" min="50" max="5000" style="width:75px;font-size:.78rem;">
+                            <span style="font-size:.75rem;">m</span>
+                            <button class="btn btn-sm btn-outline-primary tool-btn" id="btn-radius" onclick="toggleRadiusMode()">
+                                <i class="fas fa-crosshairs"></i>
+                            </button>
+                        </div>
+                        <div id="radius-info"></div>
+                        <button class="btn btn-sm btn-outline-secondary tool-btn w-100 mt-1" id="btn-clear-radius" style="display:none;" onclick="clearRadius()">
+                            <i class="fas fa-times"></i> Xóa
+                        </button>
+                    </div>
+
+                    <!-- Zone management -->
+                    <div class="tool-section">
+                        <div class="tool-label">Quản lý vùng</div>
+                        <button class="btn btn-sm btn-outline-success tool-btn w-100 mb-1" id="btn-zone-draw" onclick="toggleZoneDraw()">
+                            <i class="fas fa-draw-polygon"></i> Vẽ vùng mới
+                        </button>
+                        <div id="zone-form">
+                            <input type="text" id="zone-name" class="form-control form-control-sm mb-1" placeholder="Tên vùng" style="font-size:.78rem;">
+                            <input type="color" id="zone-color" class="form-control form-control-sm form-control-color mb-1" value="#1abc9c" style="height:28px;">
+                            <button class="btn btn-sm btn-success tool-btn w-100" onclick="saveZone()">
+                                <i class="fas fa-save"></i> Lưu vùng
+                            </button>
+                        </div>
+                        <div id="zone-list" class="mt-1"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Route panel — bottom-right -->
+        <div class="map-overlay map-route">
+            <div class="card">
+                <div class="card-body">
+                    <button id="btn-route" class="btn btn-primary btn-sm w-100" onclick="routeToNearest()">
+                        <i class="fas fa-directions"></i> Chỉ đường cây gần nhất
+                    </button>
+                    <button id="btn-clear-route" class="btn btn-outline-secondary btn-sm w-100 mt-1" style="display:none;" onclick="clearRoute()">
+                        <i class="fas fa-times"></i> Xóa đường đi
+                    </button>
+                    <div id="route-info" class="alert alert-info mt-2 small mb-0 py-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    var map = L.map('map', { zoomControl: false }).setView([10.8231, 106.6297], 13);
+
+    // Zoom control — top-right
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    // === Basemap layers ===
+    var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+    });
+
+    var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '&copy; Esri'
+    });
+
+    var terrainLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenTopoMap'
+    });
+
+    // Mặc định hiển thị OSM
+    osmLayer.addTo(map);
+
+    // Layer control — góc phải
+    L.control.layers({
+        '<i class="fas fa-map"></i> Bản đồ': osmLayer,
+        '<i class="fas fa-satellite"></i> Vệ tinh': satelliteLayer,
+        '<i class="fas fa-mountain"></i> Địa hình': terrainLayer
+    }, null, { position: 'topright', collapsed: true }).addTo(map);
+
+    // Nút "Vị trí của tôi"
+    var locBtn = L.DomUtil.create('button', 'btn btn-light border shadow-sm');
+    locBtn.innerHTML = '<i class="fas fa-location-dot"></i>';
+    locBtn.title = 'Vị trí của tôi';
+    locBtn.style.cssText = 'position:absolute;bottom:160px;left:12px;z-index:800;width:36px;height:36px;padding:0;border-radius:8px;font-size:16px;cursor:pointer;color:#3498db;';
+    locBtn.onclick = function() { map.locate({ setView: true, maxZoom: 16 }); };
+    document.getElementById('map').appendChild(locBtn);
+
+    map.on('locationfound', function(e) {
+        L.circleMarker(e.latlng, { color: '#3498db', fillColor: '#3498db', fillOpacity: 1, radius: 7 })
+         .addTo(map).bindPopup('Bạn đang ở đây').openPopup();
+    });
+
+    var treeData = {{ tree_json|safe }};
+    document.getElementById('total-trees').textContent = treeData.length;
+
+    // === Icon nhỏ gọn ===
+    function treeIcon(status) {
+        var color = '#1abc9c';
+        var icon = 'fa-tree';
+        if (status === 'SAU_BENH') { color = '#f39c12'; icon = 'fa-bug'; }
+        if (status === 'NGUY_HIEM') { color = '#e74c3c'; icon = 'fa-exclamation-triangle'; }
+        return L.divIcon({
+            html: '<div style="width:22px;height:22px;background:' + color + ';border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;">'
+                + '<i class="fas ' + icon + '" style="color:#fff;font-size:10px;"></i></div>',
+            className: '',
+            iconSize: [22, 22],
+            iconAnchor: [11, 11],
+            popupAnchor: [0, -12]
+        });
+    }
+
+    var markerGroup = L.markerClusterGroup({
+        maxClusterRadius: 50,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        iconCreateFunction: function(cluster) {
+            var count = cluster.getChildCount();
+            var size = count < 10 ? 'small' : count < 50 ? 'medium' : 'large';
+            var dims = size === 'small' ? 36 : size === 'medium' ? 44 : 52;
+            return L.divIcon({
+                html: '<div style="width:' + dims + 'px;height:' + dims + 'px;background:var(--ug-teal,#1abc9c);border:3px solid #fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:' + (size === 'large' ? '14' : '12') + 'px;">' + count + '</div>',
+                className: '',
+                iconSize: [dims, dims],
+                iconAnchor: [dims/2, dims/2]
+            });
+        }
+    });
+    var hasSearchResults = {% if query or status_filter %}true{% else %}false{% endif %};
+
+    treeData.forEach(function(tree) {
+        var statusText = tree.status === 'SAU_BENH' ? 'Sâu bệnh' : tree.status === 'NGUY_HIEM' ? 'Nguy hiểm' : 'Tốt';
+        var badgeClass = tree.status === 'NGUY_HIEM' ? 'danger' : tree.status === 'SAU_BENH' ? 'warning' : 'success';
+
+        var marker = L.marker([tree.lat, tree.long], { icon: treeIcon(tree.status) });
+        markerGroup.addLayer(marker);
+
+        marker.bindPopup(
+            '<div class="tree-popup">'
+            + '<div class="tp-title">' + tree.code + ' <span class="badge bg-' + badgeClass + '" style="font-size:.7rem;">' + statusText + '</span></div>'
+            + '<div class="tp-row">' + tree.name + ' · ' + tree.height + 'm</div>'
+            + '<div class="tp-actions">'
+            + '<a href="/tree/' + tree.id + '/" class="btn btn-sm btn-success"><i class="fas fa-eye"></i> Hồ sơ</a>'
+            + '<button class="btn btn-sm btn-outline-danger" onclick="routeToTree(' + tree.lat + ',' + tree.long + ',\'' + tree.code + '\',\'' + tree.name.replace(/'/g, "\\'") + '\',\'' + tree.status + '\')"><i class="fas fa-directions"></i></button>'
+            + '</div></div>'
+        );
+    });
+
+    markerGroup.addTo(map);
+
+    // Auto-fit bounds
+    if (treeData.length > 0) {
+        if (hasSearchResults && treeData.length === 1) {
+            map.setView([treeData[0].lat, treeData[0].long], 17);
+        } else {
+            map.fitBounds(markerGroup.getBounds(), { padding: [60, 60], maxZoom: 16 });
+        }
+    }
+
+    // ========== CHỈ ĐƯỜNG TỚI CÂY CẦN CHĂM SÓC GẦN NHẤT ==========
+    var routeLine = null;
+    var userMarker = null;
+
+    // Tính khoảng cách Haversine (km)
+    function haversine(lat1, lon1, lat2, lon2) {
+        var R = 6371;
+        var dLat = (lat2 - lat1) * Math.PI / 180;
+        var dLon = (lon2 - lon1) * Math.PI / 180;
+        var a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function routeToNearest() {
+        var btn = document.getElementById('btn-route');
+        var info = document.getElementById('route-info');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang định vị...';
+
+        if (!navigator.geolocation) {
+            alert('Trình duyệt không hỗ trợ định vị.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-directions"></i> Chỉ đường tới cây gần nhất';
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            var myLat = pos.coords.latitude;
+            var myLng = pos.coords.longitude;
+
+            if (treeData.length === 0) {
+                alert('Không có cây nào trên bản đồ.');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-directions"></i> Chỉ đường tới cây gần nhất';
+                return;
+            }
+
+            // Tìm cây gần nhất
+            var nearest = null;
+            var minDist = Infinity;
+            treeData.forEach(function(t) {
+                var d = haversine(myLat, myLng, t.lat, t.long);
+                if (d < minDist) {
+                    minDist = d;
+                    nearest = t;
+                }
+            });
+
+            // Gọi OSRM để lấy route
+            var osrmUrl = 'https://router.project-osrm.org/route/v1/driving/'
+                + myLng + ',' + myLat + ';' + nearest.long + ',' + nearest.lat
+                + '?overview=full&geometries=geojson';
+
+            fetch(osrmUrl)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    clearRoute();
+
+                    if (!data.routes || data.routes.length === 0) {
+                        alert('Không tìm được đường đi. Thử lại sau.');
+                        return;
+                    }
+
+                    var coords = data.routes[0].geometry.coordinates.map(function(c) {
+                        return [c[1], c[0]];
+                    });
+
+                    // Vẽ đường đi
+                    routeLine = L.polyline(coords, {
+                        color: '#e74c3c', weight: 5, opacity: 0.8,
+                        dashArray: '10, 10'
+                    }).addTo(map);
+
+                    // Marker vị trí người dùng
+                    userMarker = L.circleMarker([myLat, myLng], {
+                        color: '#3498db', fillColor: '#3498db', fillOpacity: 1, radius: 10
+                    }).addTo(map).bindPopup('Bạn đang ở đây').openPopup();
+
+                    // Zoom fit
+                    map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
+
+                    // Hiển thị thông tin
+                    var distKm = (data.routes[0].distance / 1000).toFixed(1);
+                    var durMin = Math.round(data.routes[0].duration / 60);
+                    var statusLabel = nearest.status === 'SAU_BENH' ? 'Sâu bệnh' : nearest.status === 'NGUY_HIEM' ? 'Nguy hiểm' : 'Tốt';
+                    var badgeClass = nearest.status === 'NGUY_HIEM' ? 'danger' : nearest.status === 'SAU_BENH' ? 'warning' : 'success';
+                    info.innerHTML =
+                        '<strong><i class="fas fa-tree"></i> ' + nearest.code + '</strong> — ' + nearest.name + '<br>'
+                        + 'Trạng thái: <span class="badge bg-' + badgeClass + '">' + statusLabel + '</span><br>'
+                        + '<i class="fas fa-road"></i> ' + distKm + ' km &nbsp;|&nbsp; '
+                        + '<i class="fas fa-clock"></i> ~' + durMin + ' phút lái xe';
+                    info.classList.add('active');
+                    document.getElementById('btn-clear-route').style.display = 'block';
+                })
+                .catch(function() {
+                    alert('Lỗi kết nối dịch vụ chỉ đường. Thử lại sau.');
+                })
+                .finally(function() {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-directions"></i> Chỉ đường tới cây gần nhất';
+                });
+        }, function() {
+            alert('Không thể lấy vị trí. Hãy cho phép trình duyệt truy cập vị trí.');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-directions"></i> Chỉ đường tới cây gần nhất';
+        }, { enableHighAccuracy: true, timeout: 10000 });
+    }
+
+    function clearRoute() {
+        if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+        if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
+        document.getElementById('route-info').classList.remove('active');
+        document.getElementById('route-info').innerHTML = '';
+        document.getElementById('btn-clear-route').style.display = 'none';
+    }
+
+    // Chỉ đường tới cây cụ thể khi click nút trong popup
+    function routeToTree(lat, lng, code, name, status) {
+        var info = document.getElementById('route-info');
+        if (!navigator.geolocation) {
+            alert('Trình duyệt không hỗ trợ định vị.');
+            return;
+        }
+        map.closePopup();
+        navigator.geolocation.getCurrentPosition(function(pos) {
+            var myLat = pos.coords.latitude;
+            var myLng = pos.coords.longitude;
+
+            var osrmUrl = 'https://router.project-osrm.org/route/v1/driving/'
+                + myLng + ',' + myLat + ';' + lng + ',' + lat
+                + '?overview=full&geometries=geojson';
+
+            fetch(osrmUrl)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    clearRoute();
+                    if (!data.routes || data.routes.length === 0) {
+                        alert('Không tìm được đường đi.');
+                        return;
+                    }
+                    var coords = data.routes[0].geometry.coordinates.map(function(c) {
+                        return [c[1], c[0]];
+                    });
+                    routeLine = L.polyline(coords, {
+                        color: '#e74c3c', weight: 5, opacity: 0.8, dashArray: '10, 10'
+                    }).addTo(map);
+                    userMarker = L.circleMarker([myLat, myLng], {
+                        color: '#3498db', fillColor: '#3498db', fillOpacity: 1, radius: 10
+                    }).addTo(map).bindPopup('Bạn đang ở đây').openPopup();
+                    map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
+
+                    var distKm = (data.routes[0].distance / 1000).toFixed(1);
+                    var durMin = Math.round(data.routes[0].duration / 60);
+                    var statusLabel = status === 'SAU_BENH' ? 'Sâu bệnh' : status === 'NGUY_HIEM' ? 'Nguy hiểm' : 'Tốt';
+                    var badgeClass = status === 'NGUY_HIEM' ? 'danger' : status === 'SAU_BENH' ? 'warning' : 'success';
+                    info.innerHTML =
+                        '<strong><i class="fas fa-tree"></i> ' + code + '</strong> — ' + name + '<br>'
+                        + 'Trạng thái: <span class="badge bg-' + badgeClass + '">' + statusLabel + '</span><br>'
+                        + '<i class="fas fa-road"></i> ' + distKm + ' km &nbsp;|&nbsp; '
+                        + '<i class="fas fa-clock"></i> ~' + durMin + ' phút lái xe';
+                    info.classList.add('active');
+                    document.getElementById('btn-clear-route').style.display = 'block';
+                })
+                .catch(function() {
+                    alert('Lỗi kết nối dịch vụ chỉ đường.');
+                });
+        }, function() {
+            alert('Không thể lấy vị trí. Hãy cho phép trình duyệt truy cập vị trí.');
+        }, { enableHighAccuracy: true, timeout: 10000 });
+    }
+
+    // ========== GEOCODING — TÌM ĐỊA CHỈ ==========
+    var geoMarker = null;
+
+    document.getElementById('geo-input').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') { e.preventDefault(); geocodeSearch(); }
+    });
+
+    function geocodeSearch() {
+        var q = document.getElementById('geo-input').value.trim();
+        if (!q) return;
+        var btn = document.getElementById('geo-btn');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        btn.disabled = true;
+
+        fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(q) + '&limit=5&countrycodes=vn&accept-language=vi')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var container = document.getElementById('geo-results');
+                container.innerHTML = '';
+                if (data.length === 0) {
+                    container.innerHTML = '<div class="text-muted small p-2">Không tìm thấy địa chỉ.</div>';
+                    container.style.display = 'block';
+                    return;
+                }
+                var ul = document.createElement('div');
+                ul.className = 'list-group';
+                data.forEach(function(item) {
+                    var li = document.createElement('a');
+                    li.href = '#';
+                    li.className = 'list-group-item list-group-item-action';
+                    li.innerHTML = '<i class="fas fa-map-pin text-danger" style="margin-right:6px;"></i>' + item.display_name;
+                    li.onclick = function(e) {
+                        e.preventDefault();
+                        gotoGeoResult(parseFloat(item.lat), parseFloat(item.lon), item.display_name);
+                    };
+                    ul.appendChild(li);
+                });
+                container.appendChild(ul);
+                container.style.display = 'block';
+            })
+            .catch(function() {
+                alert('Lỗi kết nối dịch vụ tìm địa chỉ.');
+            })
+            .finally(function() {
+                btn.innerHTML = '<i class="fas fa-map-marker-alt"></i>';
+                btn.disabled = false;
+            });
+    }
+
+    function gotoGeoResult(lat, lng, name) {
+        if (geoMarker) map.removeLayer(geoMarker);
+        geoMarker = L.marker([lat, lng], {
+            icon: L.divIcon({
+                html: '<div style="width:28px;height:28px;background:#e74c3c;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;"><i class="fas fa-map-pin" style="color:#fff;font-size:12px;"></i></div>',
+                className: '',
+                iconSize: [28, 28],
+                iconAnchor: [14, 14],
+                popupAnchor: [0, -16]
+            })
+        }).addTo(map).bindPopup('<strong><i class="fas fa-map-marker-alt text-danger"></i> ' + name + '</strong>').openPopup();
+        map.setView([lat, lng], 17);
+        document.getElementById('geo-results').style.display = 'none';
+    }
+
+    // ========== DYNAMIC LEGEND — CẬP NHẬT SỐ LƯỢNG ==========
+    function updateLegendCounts() {
+        var cntTot = 0, cntSB = 0, cntNH = 0;
+        treeData.forEach(function(t) {
+            if (t.status === 'SAU_BENH') cntSB++;
+            else if (t.status === 'NGUY_HIEM') cntNH++;
+            else cntTot++;
+        });
+        document.getElementById('cnt-tot').textContent = '(' + cntTot + ')';
+        document.getElementById('cnt-sb').textContent = '(' + cntSB + ')';
+        document.getElementById('cnt-nh').textContent = '(' + cntNH + ')';
+    }
+    updateLegendCounts();
+
+    // ========== HEATMAP ==========
+    var heatPoints = treeData.map(function(t) {
+        var intensity = t.status === 'NGUY_HIEM' ? 1.0 : t.status === 'SAU_BENH' ? 0.7 : 0.4;
+        return [t.lat, t.long, intensity];
+    });
+    var heatLayer = L.heatLayer(heatPoints, {
+        radius: 30, blur: 20, maxZoom: 17, max: 1.0,
+        gradient: { 0.2: '#1abc9c', 0.4: '#2ecc71', 0.6: '#f1c40f', 0.8: '#e67e22', 1.0: '#e74c3c' }
+    });
+
+    document.getElementById('toggle-heat').addEventListener('change', function() {
+        if (this.checked) {
+            heatLayer.addTo(map);
+            document.getElementById('legend-heat').style.display = 'flex';
+        } else {
+            map.removeLayer(heatLayer);
+            document.getElementById('legend-heat').style.display = 'none';
+        }
+    });
+
+    // ========== TÌM CÂY THEO BÁN KÍNH ==========
+    var radiusMode = false;
+    var radiusCircle = null;
+    var radiusMarkers = [];
+
+    function toggleRadiusMode() {
+        radiusMode = !radiusMode;
+        var btn = document.getElementById('btn-radius');
+        if (radiusMode) {
+            btn.classList.replace('btn-outline-primary', 'btn-primary');
+            map.getContainer().style.cursor = 'crosshair';
+        } else {
+            btn.classList.replace('btn-primary', 'btn-outline-primary');
+            map.getContainer().style.cursor = '';
+        }
+    }
+
+    map.on('click', function(e) {
+        if (!radiusMode) return;
+        clearRadius();
+        var radius = parseInt(document.getElementById('radius-val').value) || 200;
+        var center = e.latlng;
+
+        radiusCircle = L.circle(center, {
+            radius: radius, color: '#3498db', fillColor: '#3498db',
+            fillOpacity: 0.1, weight: 2, dashArray: '6, 4'
+        }).addTo(map);
+
+        var found = [];
+        treeData.forEach(function(t) {
+            var dist = haversine(center.lat, center.lng, t.lat, t.long) * 1000;
+            if (dist <= radius) {
+                found.push({ tree: t, dist: Math.round(dist) });
+                var m = L.circleMarker([t.lat, t.long], {
+                    radius: 8, color: '#3498db', fillColor: '#3498db', fillOpacity: 0.6, weight: 2
+                }).addTo(map).bindPopup(
+                    '<strong>' + t.code + '</strong> — ' + t.name + '<br>Khoảng cách: ' + Math.round(dist) + 'm'
+                );
+                radiusMarkers.push(m);
+            }
+        });
+
+        found.sort(function(a, b) { return a.dist - b.dist; });
+        var infoDiv = document.getElementById('radius-info');
+        if (found.length === 0) {
+            infoDiv.innerHTML = '<div class="text-muted">Không có cây nào trong bán kính ' + radius + 'm.</div>';
+        } else {
+            var html = '<div class="fw-bold mb-1">Tìm thấy ' + found.length + ' cây:</div>';
+            found.slice(0, 8).forEach(function(f) {
+                var statusLabel = f.tree.status === 'SAU_BENH' ? '🟡' : f.tree.status === 'NGUY_HIEM' ? '🔴' : '🟢';
+                html += '<div style="font-size:.75rem;">' + statusLabel + ' ' + f.tree.code + ' — ' + f.dist + 'm</div>';
+            });
+            if (found.length > 8) html += '<div class="text-muted" style="font-size:.72rem;">... và ' + (found.length - 8) + ' cây khác</div>';
+            infoDiv.innerHTML = html;
+        }
+        infoDiv.classList.add('active');
+        document.getElementById('btn-clear-radius').style.display = 'block';
+        document.getElementById('legend-radius').style.display = 'flex';
+
+        // Zoom to circle
+        map.fitBounds(radiusCircle.getBounds(), { padding: [40, 40] });
+
+        // Exit radius mode
+        toggleRadiusMode();
+    });
+
+    function clearRadius() {
+        if (radiusCircle) { map.removeLayer(radiusCircle); radiusCircle = null; }
+        radiusMarkers.forEach(function(m) { map.removeLayer(m); });
+        radiusMarkers = [];
+        document.getElementById('radius-info').classList.remove('active');
+        document.getElementById('radius-info').innerHTML = '';
+        document.getElementById('btn-clear-radius').style.display = 'none';
+        document.getElementById('legend-radius').style.display = 'none';
+    }
+
+    // ========== QUẢN LÝ VÙNG (ZONE MANAGEMENT) ==========
+    var zoneData = {{ zone_json|safe }};
+    var zoneLayers = {};
+    var drawnPolygon = null;
+    var drawControl = null;
+    var drawnItems = new L.FeatureGroup().addTo(map);
+
+    // Point-in-polygon (ray casting)
+    function pointInPolygon(lat, lng, polygon) {
+        var inside = false;
+        for (var i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            var xi = polygon[i][0], yi = polygon[i][1];
+            var xj = polygon[j][0], yj = polygon[j][1];
+            var intersect = ((yi > lng) !== (yj > lng)) && (lat < (xj - xi) * (lng - yi) / (yj - yi) + xi);
+            if (intersect) inside = !inside;
+        }
+        return inside;
+    }
+
+    function countTreesInPolygon(polygon) {
+        var count = 0;
+        treeData.forEach(function(t) {
+            if (pointInPolygon(t.lat, t.long, polygon)) count++;
+        });
+        return count;
+    }
+
+    // Render existing zones
+    function renderZones() {
+        Object.values(zoneLayers).forEach(function(l) { map.removeLayer(l); });
+        zoneLayers = {};
+        var listEl = document.getElementById('zone-list');
+        listEl.innerHTML = '';
+
+        zoneData.forEach(function(z) {
+            var latlngs = z.polygon.map(function(p) { return [p[0], p[1]]; });
+            var layer = L.polygon(latlngs, {
+                color: z.color, fillColor: z.color, fillOpacity: 0.15, weight: 2
+            }).addTo(map);
+            var treeCnt = countTreesInPolygon(z.polygon);
+            layer.bindPopup('<strong>' + z.name + '</strong><br><i class="fas fa-tree"></i> ' + treeCnt + ' cây trong vùng');
+            zoneLayers[z.id] = layer;
+
+            var item = document.createElement('div');
+            item.className = 'zone-item';
+            item.innerHTML = '<span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + z.color + ';margin-right:4px;"></span>' + z.name + ' <small class="text-muted">(' + treeCnt + ')</small></span>'
+                + '<button class="btn btn-sm btn-outline-danger" style="padding:0 4px;font-size:.65rem;line-height:1.4;" onclick="deleteZone(' + z.id + ')"><i class="fas fa-trash"></i></button>';
+            listEl.appendChild(item);
+        });
+
+        document.getElementById('legend-zone').style.display = zoneData.length > 0 ? 'flex' : 'none';
+    }
+    renderZones();
+
+    function toggleZoneDraw() {
+        if (drawControl) {
+            map.removeControl(drawControl);
+            drawControl = null;
+            drawnItems.clearLayers();
+            drawnPolygon = null;
+            document.getElementById('zone-form').classList.remove('active');
+            document.getElementById('btn-zone-draw').innerHTML = '<i class="fas fa-draw-polygon"></i> Vẽ vùng mới';
+            return;
+        }
+        drawControl = new L.Control.Draw({
+            position: 'topleft',
+            draw: {
+                polygon: { shapeOptions: { color: '#1abc9c', weight: 2 } },
+                polyline: false, rectangle: false, circle: false, circlemarker: false, marker: false
+            },
+            edit: { featureGroup: drawnItems }
+        });
+        map.addControl(drawControl);
+        document.getElementById('btn-zone-draw').innerHTML = '<i class="fas fa-times"></i> Hủy vẽ';
+    }
+
+    map.on(L.Draw.Event.CREATED, function(e) {
+        drawnItems.clearLayers();
+        drawnPolygon = e.layer;
+        drawnItems.addLayer(drawnPolygon);
+        document.getElementById('zone-form').classList.add('active');
+        document.getElementById('zone-name').focus();
+    });
+
+    function saveZone() {
+        var name = document.getElementById('zone-name').value.trim();
+        var color = document.getElementById('zone-color').value;
+        if (!name) { alert('Vui lòng nhập tên vùng.'); return; }
+        if (!drawnPolygon) { alert('Vui lòng vẽ vùng trên bản đồ.'); return; }
+
+        var latlngs = drawnPolygon.getLatLngs()[0].map(function(ll) { return [ll.lat, ll.lng]; });
+
+        fetch('{% url "zone_create" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: 'name=' + encodeURIComponent(name) + '&color=' + encodeURIComponent(color) + '&polygon_json=' + encodeURIComponent(JSON.stringify(latlngs))
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'ok') {
+                zoneData.push({ id: data.id, name: name, color: color, polygon: latlngs });
+                renderZones();
+                // Clean up drawing
+                drawnItems.clearLayers();
+                drawnPolygon = null;
+                document.getElementById('zone-form').classList.remove('active');
+                document.getElementById('zone-name').value = '';
+                if (drawControl) { map.removeControl(drawControl); drawControl = null; }
+                document.getElementById('btn-zone-draw').innerHTML = '<i class="fas fa-draw-polygon"></i> Vẽ vùng mới';
+            } else {
+                alert('Lỗi: ' + (data.error || 'Không thể lưu vùng.'));
+            }
+        })
+        .catch(function() { alert('Lỗi kết nối server.'); });
+    }
+
+    function deleteZone(zoneId) {
+        if (!confirm('Xóa vùng quản lý này?')) return;
+        fetch('/api/zone/' + zoneId + '/delete/', {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.status === 'ok') {
+                zoneData = zoneData.filter(function(z) { return z.id !== zoneId; });
+                renderZones();
+            }
+        })
+        .catch(function() { alert('Lỗi kết nối server.'); });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}Báo cáo Thống kê{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dash-card { background: #fff; border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,.06); border: 1px solid #f3f4f6; height: 100%; }
+    .dash-card h5 { font-size: 1rem; font-weight: 700; color: var(--ug-dark); margin-bottom: 1rem; }
+    .dash-card h5 i { color: var(--ug-teal); margin-right: .4rem; }
+    .chart-wrap { position: relative; width: 100%; }
+    .summary-num { font-size: 2rem; font-weight: 800; color: var(--ug-teal); }
+    .summary-label { font-size: .85rem; color: #6b7280; }
+    .export-group { display: flex; gap: .5rem; flex-wrap: wrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="page-header">
+        <div>
+            <h2 class="page-title"><i class="fas fa-chart-pie"></i> Báo cáo Thống kê</h2>
+            <p class="page-subtitle">Tổng quan dữ liệu cây xanh và hoạt động chăm sóc</p>
+        </div>
+        <div class="page-actions export-group">
+            <a href="{% url 'export_trees' %}" class="btn btn-outline-success btn-sm">
+                <i class="fas fa-file-csv"></i> Xuất danh sách cây
+            </a>
+            <a href="{% url 'export_maintenance' %}" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-file-csv"></i> Xuất lịch chăm sóc
+            </a>
+        </div>
+    </div>
+
+    <!-- Tổng quan -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="dash-card text-center">
+                <div class="summary-num">{{ total_trees }}</div>
+                <div class="summary-label"><i class="fas fa-tree"></i> Tổng số cây</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="dash-card text-center">
+                <div class="summary-num">{{ total_species }}</div>
+                <div class="summary-label"><i class="fas fa-leaf"></i> Loài cây</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="dash-card text-center">
+                <div class="summary-num">{{ total_logs }}</div>
+                <div class="summary-label"><i class="fas fa-clipboard-list"></i> Lượt chăm sóc</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Biểu đồ -->
+    <div class="row g-4">
+        <!-- Pie — Loài cây -->
+        <div class="col-lg-6">
+            <div class="dash-card">
+                <h5><i class="fas fa-chart-pie"></i> Phân bố theo Loài cây</h5>
+                <div class="chart-wrap">
+                    <canvas id="speciesChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bar — Trạng thái -->
+        <div class="col-lg-6">
+            <div class="dash-card">
+                <h5><i class="fas fa-chart-bar"></i> Trạng thái Cây xanh</h5>
+                <div class="chart-wrap">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Line — Chăm sóc theo tháng -->
+        <div class="col-lg-6">
+            <div class="dash-card">
+                <h5><i class="fas fa-chart-line"></i> Hoạt động Chăm sóc theo Tháng</h5>
+                <div class="chart-wrap">
+                    <canvas id="monthlyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bar — Loại công việc -->
+        <div class="col-lg-6">
+            <div class="dash-card">
+                <h5><i class="fas fa-chart-bar"></i> Phân bố theo Loại công việc</h5>
+                <div class="chart-wrap">
+                    <canvas id="actionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    var tealPalette = ['#1abc9c','#2ecc71','#3498db','#9b59b6','#e67e22','#e74c3c','#f1c40f','#1abc9c80','#2ecc7180','#3498db80'];
+
+    // Pie — Loài cây
+    new Chart(document.getElementById('speciesChart'), {
+        type: 'doughnut',
+        data: {
+            labels: {{ species_labels|safe }},
+            datasets: [{
+                data: {{ species_counts|safe }},
+                backgroundColor: tealPalette,
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 14, font: { size: 12 } } }
+            }
+        }
+    });
+
+    // Bar — Trạng thái
+    new Chart(document.getElementById('statusChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ status_labels|safe }},
+            datasets: [{
+                label: 'Số cây',
+                data: {{ status_counts|safe }},
+                backgroundColor: ['#1abc9c', '#f39c12', '#e74c3c'],
+                borderRadius: 8,
+                barThickness: 50
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+            }
+        }
+    });
+
+    // Line — Theo tháng
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'line',
+        data: {
+            labels: {{ month_labels|safe }},
+            datasets: [{
+                label: 'Lượt chăm sóc',
+                data: {{ month_counts|safe }},
+                borderColor: '#1abc9c',
+                backgroundColor: 'rgba(26,188,156,.1)',
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: '#1abc9c',
+                pointRadius: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 } }
+            }
+        }
+    });
+
+    // Bar — Loại công việc
+    new Chart(document.getElementById('actionChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ action_labels|safe }},
+            datasets: [{
+                label: 'Số lượt',
+                data: {{ action_counts|safe }},
+                backgroundColor: ['#1abc9c','#3498db','#e67e22','#9b59b6','#2ecc71'],
+                borderRadius: 8,
+                barThickness: 40
+            }]
+        },
+        options: {
+            responsive: true,
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { beginAtZero: true, ticks: { stepSize: 1 } }
+            }
+        }
+    });
+</script>
+{% endblock %}

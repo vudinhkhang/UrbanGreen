@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Thêm Loài Cây{% endblock %}
+{% block title %}Sửa Loài Cây{% endblock %}
 
 {% block content %}
 <div class="container py-4">
     <div class="page-header">
         <div>
-            <h2 class="page-title"><i class="fas fa-plus-circle"></i> Thêm Loài Cây Mới</h2>
-            <p class="page-subtitle">Thêm loài cây vào cơ sở dữ liệu</p>
+            <h2 class="page-title"><i class="fas fa-edit"></i> Sửa Loài Cây</h2>
+            <p class="page-subtitle">Cập nhật thông tin loài: {{ species.name }}</p>
         </div>
         <div class="page-actions">
             <a href="{% url 'species_list' %}" class="btn btn-outline-secondary">
@@ -23,21 +23,21 @@
                         {% csrf_token %}
                         <div class="mb-3">
                             <label class="form-label">Tên loài</label>
-                            <input type="text" name="name" class="form-control" required>
+                            <input type="text" name="name" class="form-control" value="{{ species.name }}" required>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Đặc tính (tuỳ chọn)</label>
-                            <textarea name="characteristics" class="form-control" rows="3" placeholder="Mô tả đặc tính chung của loài..."></textarea>
+                            <textarea name="characteristics" class="form-control" rows="3" placeholder="Mô tả đặc tính chung của loài...">{{ species.characteristics|default:'' }}</textarea>
                         </div>
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label class="form-label">Chu kỳ tưới nước (ngày)</label>
-                                <input type="number" name="watering_frequency_days" class="form-control" value="7" min="1">
+                                <input type="number" name="watering_frequency_days" class="form-control" value="{{ species.watering_frequency_days }}" min="1">
                                 <small class="text-muted">Số ngày giữa mỗi lần tưới</small>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Chu kỳ kiểm tra (ngày)</label>
-                                <input type="number" name="inspection_frequency_days" class="form-control" value="90" min="1">
+                                <input type="number" name="inspection_frequency_days" class="form-control" value="{{ species.inspection_frequency_days }}" min="1">
                                 <small class="text-muted">Số ngày giữa mỗi lần kiểm tra</small>
                             </div>
                         </div>
@@ -46,7 +46,7 @@
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="is_pest_prone" id="isPestProne">
+                                        <input class="form-check-input" type="checkbox" name="is_pest_prone" id="isPestProne" {% if species.is_pest_prone %}checked{% endif %}>
                                         <label class="form-check-label" for="isPestProne">
                                             <i class="fas fa-bug text-warning"></i> Dễ bị sâu bệnh
                                         </label>
@@ -54,7 +54,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="is_fall_prone" id="isFallProne">
+                                        <input class="form-check-input" type="checkbox" name="is_fall_prone" id="isFallProne" {% if species.is_fall_prone %}checked{% endif %}>
                                         <label class="form-check-label" for="isFallProne">
                                             <i class="fas fa-wind text-danger"></i> Dễ đổ / gãy
                                         </label>
@@ -62,7 +62,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="is_fast_growing" id="isFastGrowing">
+                                        <input class="form-check-input" type="checkbox" name="is_fast_growing" id="isFastGrowing" {% if species.is_fast_growing %}checked{% endif %}>
                                         <label class="form-check-label" for="isFastGrowing">
                                             <i class="fas fa-arrows-up-down text-success"></i> Mọc nhanh (cần cắt tỉa)
                                         </label>
@@ -70,7 +70,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="is_drought_sensitive" id="isDroughtSensitive">
+                                        <input class="form-check-input" type="checkbox" name="is_drought_sensitive" id="isDroughtSensitive" {% if species.is_drought_sensitive %}checked{% endif %}>
                                         <label class="form-check-label" for="isDroughtSensitive">
                                             <i class="fas fa-sun text-warning"></i> Nhạy cảm hạn hán
                                         </label>
@@ -78,7 +78,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="is_invasive_roots" id="isInvasiveRoots">
+                                        <input class="form-check-input" type="checkbox" name="is_invasive_roots" id="isInvasiveRoots" {% if species.is_invasive_roots %}checked{% endif %}>
                                         <label class="form-check-label" for="isInvasiveRoots">
                                             <i class="fas fa-diagram-project text-secondary"></i> Rễ xâm lấn
                                         </label>

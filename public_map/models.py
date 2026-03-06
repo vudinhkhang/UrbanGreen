@@ -5,6 +5,15 @@ class TreeSpecies(models.Model):
     name = models.CharField(max_length=100, verbose_name="Tên loài")
     characteristics = models.TextField(verbose_name="Đặc tính", blank=True)
 
+    # Đặc tính mở rộng cho AI đề xuất
+    is_pest_prone = models.BooleanField(default=False, verbose_name="Dễ sâu bệnh")
+    is_fall_prone = models.BooleanField(default=False, verbose_name="Dễ đổ/gãy")
+    is_fast_growing = models.BooleanField(default=False, verbose_name="Mọc nhanh (cần cắt tỉa)")
+    is_drought_sensitive = models.BooleanField(default=False, verbose_name="Nhạy cảm hạn hán")
+    is_invasive_roots = models.BooleanField(default=False, verbose_name="Rễ xâm lấn")
+    watering_frequency_days = models.PositiveIntegerField(default=7, verbose_name="Chu kỳ tưới nước (ngày)")
+    inspection_frequency_days = models.PositiveIntegerField(default=90, verbose_name="Chu kỳ kiểm tra (ngày)")
+
     def __str__(self):
         return self.name
 
@@ -40,10 +49,22 @@ class MaintenanceLog(models.Model):
         ('CAT_TIA', 'Cắt tỉa cành'),
         ('BON_PHAN', 'Bón phân'),
         ('PHUN_THUOC', 'Phun thuốc trừ sâu'),
-        ('KIEM_TRA', 'Kiểm tra định kỳ')
+        ('KIEM_TRA', 'Kiểm tra định kỳ'),
+        ('TUOI_NUOC', 'Tưới nước'),
     ])
     performer = models.CharField(max_length=100, verbose_name="Người thực hiện")
     note = models.TextField(verbose_name="Ghi chú/Kết quả", blank=True)
 
     def __str__(self):
         return f"{self.tree.code} - {self.action} ({self.date})"
+
+
+# 4. Bảng Vùng quản lý
+class ManagementZone(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Tên vùng")
+    color = models.CharField(max_length=7, default='#1abc9c', verbose_name="Màu hiển thị")
+    polygon_json = models.TextField(verbose_name="Polygon GeoJSON")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name

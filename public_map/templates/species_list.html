@@ -3,10 +3,38 @@
 {% block title %}Danh sách Loài Cây{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3>Danh sách Loài Cây</h3>
-        <a href="{% url 'species_add' %}" class="btn btn-success">+ Thêm loài cây</a>
+<div class="container py-4">
+    <div class="page-header">
+        <div>
+            <h2 class="page-title"><i class="fas fa-leaf"></i> Danh sách Loài Cây</h2>
+            <p class="page-subtitle">Quản lý các loài cây trong hệ thống</p>
+        </div>
+        <div class="page-actions">
+            <a href="{% url 'species_add' %}" class="btn btn-success">
+                <i class="fas fa-plus-circle"></i> Thêm loài cây
+            </a>
+        </div>
+    </div>
+
+    <!-- Thanh tìm kiếm & filter -->
+    <div class="card mb-3">
+        <div class="card-body py-2">
+            <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
+                <input type="text" name="q" class="form-control form-control-sm" placeholder="Tìm tên loài hoặc đặc tính..." value="{{ query }}" style="max-width:250px;">
+                <select name="trait" class="form-select form-select-sm" style="max-width:180px;">
+                    <option value="">Tất cả đặc tính</option>
+                    <option value="pest" {% if trait_filter == 'pest' %}selected{% endif %}>🐛 Sâu bệnh</option>
+                    <option value="fall" {% if trait_filter == 'fall' %}selected{% endif %}>💨 Dễ đổ</option>
+                    <option value="fast" {% if trait_filter == 'fast' %}selected{% endif %}>🌿 Mọc nhanh</option>
+                    <option value="drought" {% if trait_filter == 'drought' %}selected{% endif %}>☀️ Nhạy hạn</option>
+                    <option value="roots" {% if trait_filter == 'roots' %}selected{% endif %}>🌱 Rễ xâm lấn</option>
+                </select>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-search"></i> Tìm</button>
+                {% if query or trait_filter %}
+                <a href="{% url 'species_list' %}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-times"></i> Xóa lọc</a>
+                {% endif %}
+            </form>
+        </div>
     </div>
 
     <div class="card">
@@ -18,15 +46,28 @@
                     <div>
                         <strong>{{ s.name }}</strong><br>
                         <small class="text-muted">{{ s.characteristics|default:'-' }}</small>
+                        <div class="mt-1" style="display:flex;flex-wrap:wrap;gap:4px;">
+                            {% if s.is_pest_prone %}<span class="badge bg-warning text-dark" style="font-size:.7rem;"><i class="fas fa-bug"></i> Sâu bệnh</span>{% endif %}
+                            {% if s.is_fall_prone %}<span class="badge bg-danger" style="font-size:.7rem;"><i class="fas fa-wind"></i> Dễ đổ</span>{% endif %}
+                            {% if s.is_fast_growing %}<span class="badge bg-success" style="font-size:.7rem;"><i class="fas fa-arrows-up-down"></i> Mọc nhanh</span>{% endif %}
+                            {% if s.is_drought_sensitive %}<span class="badge bg-info" style="font-size:.7rem;"><i class="fas fa-sun"></i> Nhạy hạn</span>{% endif %}
+                            {% if s.is_invasive_roots %}<span class="badge bg-secondary" style="font-size:.7rem;"><i class="fas fa-diagram-project"></i> Rễ xâm lấn</span>{% endif %}
+                            <span class="badge bg-light text-dark" style="font-size:.7rem;"><i class="fas fa-droplet"></i> {{ s.watering_frequency_days }}ngày</span>
+                            <span class="badge bg-light text-dark" style="font-size:.7rem;"><i class="fas fa-clipboard-check"></i> {{ s.inspection_frequency_days }}ngày</span>
+                        </div>
                     </div>
-                    <div>
-                        <!-- future: edit/delete actions -->
+                    <div class="d-flex gap-1">
+                        <a href="{% url 'species_edit' s.id %}" class="btn btn-sm btn-outline-warning"><i class="fas fa-edit"></i></a>
+                        <form method="post" action="{% url 'species_delete' s.id %}" onsubmit="return confirm('Bạn có chắc muốn xóa loài &quot;{{ s.name }}&quot;?');" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                        </form>
                     </div>
                 </li>
                 {% endfor %}
             </ul>
             {% else %}
-            <p class="text-muted">Chưa có loài cây nào. Thêm mới để bắt đầu.</p>
+            <p class="text-muted">{% if query or trait_filter %}Không tìm thấy loài cây phù hợp.{% else %}Chưa có loài cây nào. Thêm mới để bắt đầu.{% endif %}</p>
             {% endif %}
         </div>
     </div>
