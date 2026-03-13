@@ -62,27 +62,15 @@ def map_view(request):
             'lat': tree.latitude,
             'long': tree.longitude,
             'height': tree.height,
-            'image': image_url
+            'image': image_url,
+            'address': tree.address or ''
         })
     
     tree_json = json.dumps(tree_list)
-
-    # Zone data
-    zones = ManagementZone.objects.all()
-    zone_list = []
-    for z in zones:
-        zone_list.append({
-            'id': z.id,
-            'name': z.name,
-            'color': z.color,
-            'polygon': json.loads(z.polygon_json),
-        })
-    zone_json = json.dumps(zone_list)
     
     # Gửi thêm biến 'query' và 'status_filter' ra để giữ lại nội dung trong ô tìm kiếm
     return render(request, 'map.html', {
         'tree_json': tree_json,
-        'zone_json': zone_json,
         'query': query,
         'status_filter': status_filter
     })
@@ -525,27 +513,6 @@ def export_maintenance_csv(request):
     return response
 
 
-# ============ QUẢN LÝ VÙNG (ZONE) API ============
-@login_required
-@require_POST
-def zone_create_view(request):
-    name = request.POST.get('name', '').strip()
-    color = request.POST.get('color', '#1abc9c').strip()
-    polygon_json = request.POST.get('polygon_json', '')
-    if not name or not polygon_json:
-        return JsonResponse({'error': 'Thiếu dữ liệu'}, status=400)
-    zone = ManagementZone.objects.create(name=name, color=color, polygon_json=polygon_json)
-    return JsonResponse({'id': zone.id, 'name': zone.name, 'color': zone.color})
-
-
-@login_required
-@require_POST
-def zone_delete_view(request, zone_id):
-    zone = get_object_or_404(ManagementZone, id=zone_id)
-    zone.delete()
-    return JsonResponse({'ok': True})
-
-
 # ============ LỊCH CHĂM SÓC ============
 @login_required
 def maintenance_list_view(request):
@@ -812,3 +779,77 @@ def maintenance_list_view(request):
         'ai_stats': stats,
         'today': today,
     })
+
+
+# ============ API: BULK MAINTENANCE ============
+@login_required
+@require_POST
+def bulk_maintenance_view(request):
+    """
+    API endpoint để tạo maintenance logs cho nhiều cây cùng lúc.
+    Nhận POST request với JSON:
+    {
+        "tree_ids": [1, 2, 3, ...],
+        "performer": "Tên người chăm sóc",
+        "action": "CAT_TIA|BON_PHAN|PHUN_THUOC|KIEM_TRA|TUOI_NUOC",
+        "date": "2024-01-15",
+        "note": "Ghi chú (tuỳ chọn)"
+    }
+    """
+    try:
+        import json
+        data = json.loads(request.body)
+        
+        tree_ids = data.get('tree_ids', [])
+        performer = data.get('performer', '').strip()
+        action = data.get('action', '').strip()
+        maintenance_date = data.get('date', '').strip()
+        note = data.get('note', '').strip()
+        
+        # Validation
+        if not tree_ids or not isinstance(tree_ids, list):
+            return JsonResponse({'status': 'error', 'error': 'Danh sách cây trống hoặc không hợp lệ'}, status=400)
+        
+        if not performer:
+            return JsonResponse({'status': 'error', 'error': 'Vui lòng nhập tên người chăm sóc'}, status=400)
+        
+        if not action:
+            return JsonResponse({'status': 'error', 'error': 'Vui lòng chọn loại công việc'}, status=400)
+        
+        if not maintenance_date:
+            return JsonResponse({'status': 'error', 'error': 'Vui lòng cung cấp ngày'}, status=400)
+        
+        # Validate action c choices
+        valid_actions = ['CAT_TIA', 'BON_PHAN', 'PHUN_THUOC', 'KIEM_TRA', 'TUOI_NUOC']
+        if action not in valid_actions:
+            return JsonResponse({'status': 'error', 'error': f'Loại công việc không hợp lệ'}, status=400)
+        
+        # Get all trees and check they exist
+        trees = UrbanTree.objects.filter(id__in=tree_ids)
+        if trees.count() != len(tree_ids):
+            return JsonResponse({'status': 'error', 'error': 'Một số cây không tồn tại'}, status=400)
+        
+        # Create maintenance logs for each tree
+        created_count = 0
+        for tree in trees:
+            MaintenanceLog.objects.create(
+                tree=tree,
+                date=maintenance_date,
+                action=action,
+                performer=performer,
+                note=note
+            )
+            created_count += 1
+        
+        return JsonResponse({
+            'status': 'ok',
+            'count': created_count,
+            'message': f'Đã lưu chăm sóc cho {created_count} cây'
+        })
+    
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'error': 'Dữ liệu JSON không hợp lệ'}, status=400)
+    except ValueError as e:
+        return JsonResponse({'status': 'error', 'error': f'Lỗi: {str(e)}'}, status=400)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': f'Lỗi server: {str(e)}'}, status=500)

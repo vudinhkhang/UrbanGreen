@@ -7,7 +7,7 @@ from public_map.views import (
     species_list_view, species_add_view, species_edit_view, species_delete_view,
     maintenance_list_view, dashboard_view,
     export_trees_csv, export_maintenance_csv,
-    zone_create_view, zone_delete_view,
+    bulk_maintenance_view,
 )
 
 # --- THÊM 2 DÒNG NÀY ---
@@ -33,8 +33,7 @@ urlpatterns = [
     path('export/trees/', export_trees_csv, name='export_trees'),
     path('export/maintenance/', export_maintenance_csv, name='export_maintenance'),
     path('maintenance/', maintenance_list_view, name='maintenance_list'),
-    path('api/zone/create/', zone_create_view, name='zone_create'),
-    path('api/zone/<int:zone_id>/delete/', zone_delete_view, name='zone_delete'),
+    path('api/bulk-maintenance/', bulk_maintenance_view, name='bulk_maintenance'),
 ]
 
 # --- THÊM ĐOẠN NÀY ĐỂ HIỂN THỊ ẢNH KHI ĐANG CHẠY THỬ (DEBUG) ---
