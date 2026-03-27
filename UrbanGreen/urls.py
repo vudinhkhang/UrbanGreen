@@ -8,6 +8,7 @@ from public_map.views import (
     maintenance_list_view, dashboard_view,
     export_trees_csv, export_maintenance_csv,
     bulk_maintenance_view,
+    custom_logout_view,
 )
 
 # --- THÊM 2 DÒNG NÀY ---
@@ -17,7 +18,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('logout/', custom_logout_view, name='logout'),
     path('', home_view, name='home'),
     path('map/', map_view, name='map'),
     path('tree/<int:tree_id>/', tree_detail_view, name='tree_detail'),

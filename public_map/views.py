@@ -8,9 +8,12 @@ from django.contrib.auth.decorators import login_required
 from datetime import datetime, date, timedelta
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
+from django.contrib.auth import logout
+from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie, csrf_exempt
 import csv
 
 @login_required
+@ensure_csrf_cookie
 def home_view(request):
     total_trees = UrbanTree.objects.count()
     total_species = TreeSpecies.objects.count()
@@ -31,6 +34,7 @@ def home_view(request):
 
 
 @login_required
+@ensure_csrf_cookie
 def map_view(request):
     # 1. Lấy tham số từ thanh địa chỉ (Ví dụ: /?q=Phuong&status=SAU_BENH)
     query = request.GET.get('q', '')
@@ -179,7 +183,7 @@ def tree_add_view(request):
 
             locations = json.loads(locations_json)
 
-            if not all([species_id, code_prefix, height]) or len(locations) == 0:
+            if not all([species_id, code_prefix]) or len(locations) == 0:
                 messages.error(request, '❌ Vui lòng điền đầy đủ thông tin và chọn ít nhất 1 vị trí trên bản đồ!')
                 return redirect('tree_add')
 
@@ -200,7 +204,12 @@ def tree_add_view(request):
                 num = max_num + i + 1
                 code = f"{code_prefix}{num:03d}"
                 tree_status = statuses[i] if i < len(statuses) else 'TOT'
-                tree_height = float(heights[i]) if i < len(heights) else float(height)
+                if i < len(heights) and heights[i]:
+                    tree_height = float(heights[i])
+                elif height:
+                    tree_height = float(height)
+                else:
+                    tree_height = 0.0
                 tree = UrbanTree(
                     species=species,
                     code=code,
@@ -844,7 +853,7 @@ def bulk_maintenance_view(request):
         return JsonResponse({
             'status': 'ok',
             'count': created_count,
-            'message': f'Đã lưu chăm sóc cho {created_count} cây'
+            'message': f'Thực hiện kiểm tra cho {created_count} cây'
         })
     
     except json.JSONDecodeError:
@@ -853,3 +862,18 @@ def bulk_maintenance_view(request):
         return JsonResponse({'status': 'error', 'error': f'Lỗi: {str(e)}'}, status=400)
     except Exception as e:
         return JsonResponse({'status': 'error', 'error': f'Lỗi server: {str(e)}'}, status=500)
+
+
+# ============ CUSTOM LOGOUT VIEW ============
+@require_POST
+@csrf_exempt  # In development, bypass CSRF check that fails with null origins
+def custom_logout_view(request):
+    """Custom logout view that handles logout properly"""
+    logout(request)
+    return redirect('login')
+
+
+# ============ CSRF FAILURE VIEW ============
+def csrf_failure(request, reason=""):
+    """Custom CSRF failure view"""
+    return render(request, 'csrf_error.html', {'reason': reason}, status=403)

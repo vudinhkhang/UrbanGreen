@@ -67,8 +67,8 @@
                         <!-- Row 2 -->
                         <div class="row">
                             <div class="col-md-4 mb-3">
-                                <label for="height" class="form-label"><strong>Chiều cao trung bình (m) <span class="text-danger">*</span></strong></label>
-                                <input type="number" class="form-control" id="height" name="height" step="0.1" placeholder="VD: 5.5" required>
+                                <label for="height" class="form-label"><strong>Chiều cao trung bình (m)</strong></label>
+                                <input type="number" class="form-control" id="height" name="height" step="0.1" placeholder="VD: 5.5">
                                 <small class="text-muted">Chiều cao mặc định cho mỗi cây. Có thể sửa từng cây bên dưới.</small>
                             </div>
                             <div class="col-md-4 mb-3">
@@ -194,9 +194,29 @@
 {% block extra_js %}
 <script>
     var pickMap = L.map('pick-map').setView([10.8231, 106.6297], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    
+    // === Basemap layers ===
+    var osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
-    }).addTo(pickMap);
+    });
+    
+    var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri'
+    });
+    
+    var terrainLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenTopoMap'
+    });
+    
+    // Mặc định hiển thị OSM
+    osmLayer.addTo(pickMap);
+    
+    // Layer control
+    L.control.layers({
+        '<i class="fas fa-map"></i> Bản đồ': osmLayer,
+        '<i class="fas fa-satellite"></i> Vệ tinh': satelliteLayer,
+        '<i class="fas fa-mountain"></i> Địa hình': terrainLayer
+    }, null, { position: 'topright', collapsed: true }).addTo(pickMap);
 
     // === Icon cây cũ (xanh, tròn nhỏ) ===
     var existingIcon = L.divIcon({

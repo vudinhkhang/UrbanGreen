@@ -32,7 +32,7 @@ SECRET_KEY = "django-insecure-#c-5aku2-+6g-ofk@^+n*^g=tv1a(#@f&x==sy2b_wh6x4obd6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 
 # Application definition
@@ -132,3 +132,16 @@ STATICFILES_DIRS = [
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+# CSRF Configuration
+CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
+CSRF_COOKIE_SECURE = False  # Set to True only if using HTTPS in production
+CSRF_COOKIE_HTTPONLY = False  # Allow JavaScript to read CSRF token for AJAX requests (if needed)
+CSRF_COOKIE_SAMESITE = 'Lax'  # Allow same-site cookies
+SESSION_COOKIE_SECURE = False  # Set to True only if using HTTPS in production
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_FAILURE_VIEW = 'public_map.views.csrf_failure'
+
+# For development: disable strict REFERER/ORIGIN checking
+if DEBUG:
+    CSRF_REFERER_NEEDS_HTTPS = False

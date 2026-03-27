@@ -373,7 +373,7 @@
                     </div>
 
                     <button class="btn btn-success btn-sm bulk-submit" id="btn-submit-bulk" onclick="submitBulkMaintenance()" disabled>
-                        <i class="fas fa-check-circle"></i> Lưu Chăm Sóc (0 cây)
+                        <i class="fas fa-check-circle"></i> Hoàn thành (0 cây)
                     </button>
                 </div>
             </div>
@@ -1008,7 +1008,7 @@
         var count = selectedTreeIds.size;
         var btn = document.getElementById('btn-submit-bulk');
         btn.disabled = count === 0 || !document.getElementById('bulk-performer').value || !document.getElementById('bulk-action').value;
-        btn.innerHTML = '<i class="fas fa-check-circle"></i> Lưu Chăm Sóc (' + count + ' cây)';
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> Hoàn thành (' + count + ' cây)';
     }
 
     // Update submit button state on form input
