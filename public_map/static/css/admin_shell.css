@@ -129,6 +129,125 @@
     gap: 12px;
 }
 
+.topbar-action-btn {
+    border: 1px solid #dbe4ee;
+    background: #fff;
+    color: #2f4255;
+    border-radius: 999px;
+    padding: 8px 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    line-height: 1;
+}
+
+.topbar-action-btn:hover {
+    border-color: #1abc9c;
+    color: #1abc9c;
+}
+
+.admin-notification-menu {
+    position: relative;
+}
+
+.notification-btn {
+    border: 1px solid #dbe4ee;
+    background: #fff;
+    color: #2f4255;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    position: relative;
+}
+
+.notification-btn:hover {
+    border-color: #1abc9c;
+    color: #1abc9c;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    background: #ef4444;
+    color: #fff;
+    border-radius: 999px;
+    font-size: 0.66rem;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+}
+
+.notification-dropdown {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    min-width: 320px;
+    background: #fff;
+    border: 1px solid #e3eaf2;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(16,38,58,0.12);
+    overflow: hidden;
+    z-index: 10;
+}
+
+.notification-dropdown.show {
+    display: block;
+}
+
+.notification-header {
+    padding: 12px 14px;
+    background: #f5f8fc;
+    border-bottom: 1px solid #e9eff7;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.notification-header strong {
+    color: #1e3446;
+    font-size: 0.92rem;
+}
+
+.notification-header small {
+    color: #6a7f92;
+    font-size: 0.74rem;
+}
+
+.notification-dropdown a,
+.notification-dropdown button {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: #2f4255;
+    text-decoration: none;
+    text-align: left;
+    padding: 11px 14px;
+    font-size: 0.88rem;
+}
+
+.notification-dropdown a i,
+.notification-dropdown button i {
+    color: #1abc9c;
+    width: 16px;
+}
+
+.notification-dropdown a:hover,
+.notification-dropdown button:hover {
+    background: #f5f8fc;
+}
+
 .admin-global-search {
     position: relative;
 }
@@ -261,13 +380,25 @@
     .topbar-right {
         width: 100%;
         justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 8px;
     }
 
     .admin-global-search {
-        flex: 1;
+        flex: 1 1 100%;
     }
 
     .admin-global-search input {
         width: 100%;
+    }
+
+    .topbar-action-btn {
+        padding: 8px 12px;
+    }
+
+    .notification-dropdown {
+        right: auto;
+        left: -100px;
+        min-width: 280px;
     }
 }

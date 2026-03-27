@@ -33,9 +33,9 @@
                 <i class="fas fa-users"></i>
                 <span>Quản lý người dùng</span>
             </a>
-            <a href="{% url 'tree_list' %}" class="menu-item {% block menu_trees %}{% endblock %}">
-                <i class="fas fa-tree"></i>
-                <span>Quản lý Cây</span>
+            <a href="{% url 'species_list' %}" class="menu-item {% block menu_species %}{% endblock %}">
+                <i class="fas fa-leaf"></i>
+                <span>Quản lý loài cây</span>
             </a>
             <a href="{% url 'admin_activities' %}" class="menu-item {% block menu_logs %}{% endblock %}">
                 <i class="fas fa-clipboard-list"></i>
@@ -59,6 +59,40 @@
                     <i class="fas fa-search"></i>
                     <input type="text" name="q" placeholder="Tìm user theo tên hoặc email..." value="{{ q|default:'' }}">
                 </form>
+
+                <a href="{% url 'home' %}" class="topbar-action-btn back-site-btn" title="Trở về trang chính">
+                    <i class="fas fa-globe"></i>
+                    <span>Về web chính</span>
+                </a>
+
+                <div class="admin-notification-menu">
+                    <button type="button" class="notification-btn" id="notificationBtn" aria-label="Thông báo admin">
+                        <i class="fas fa-bell"></i>
+                        <span class="notification-badge" id="notificationBadge">3</span>
+                    </button>
+                    <div class="notification-dropdown" id="notificationDropdown">
+                        <div class="notification-header">
+                            <strong>Thông báo quản trị</strong>
+                            <small>Cập nhật lúc {% now "H:i" %}</small>
+                        </div>
+                        <a href="{% url 'admin_activities' %}">
+                            <i class="fas fa-clipboard-list"></i>
+                            <span>Có hoạt động mới, mở Nhật ký hoạt động</span>
+                        </a>
+                        <a href="{% url 'maintenance_list' %}">
+                            <i class="fas fa-screwdriver-wrench"></i>
+                            <span>Xem nhanh danh sách vận hành gần đây</span>
+                        </a>
+                        <a href="{% url 'dashboard' %}">
+                            <i class="fas fa-chart-pie"></i>
+                            <span>Kiểm tra thống kê trên báo cáo</span>
+                        </a>
+                        <button type="button" id="markNotificationsReadBtn">
+                            <i class="fas fa-check"></i>
+                            <span>Đánh dấu đã xem</span>
+                        </button>
+                    </div>
+                </div>
 
                 <div class="admin-avatar-menu">
                     <button type="button" class="avatar-btn" id="avatarBtn">
@@ -101,6 +135,10 @@
     const collapseBtn = document.getElementById('sidebarCollapseBtn');
     const avatarBtn = document.getElementById('avatarBtn');
     const avatarDropdown = document.getElementById('avatarDropdown');
+    const notificationBtn = document.getElementById('notificationBtn');
+    const notificationDropdown = document.getElementById('notificationDropdown');
+    const notificationBadge = document.getElementById('notificationBadge');
+    const markNotificationsReadBtn = document.getElementById('markNotificationsReadBtn');
 
     if (localStorage.getItem('adminSidebarCollapsed') === '1') {
         sidebar.classList.add('collapsed');
@@ -115,15 +153,51 @@
         });
     }
 
+    if (notificationBadge && localStorage.getItem('adminNotificationsRead') === '1') {
+        notificationBadge.style.display = 'none';
+    }
+
+    if (notificationBtn && notificationDropdown) {
+        notificationBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            notificationDropdown.classList.toggle('show');
+            if (avatarDropdown) {
+                avatarDropdown.classList.remove('show');
+            }
+        });
+    }
+
+    if (markNotificationsReadBtn) {
+        markNotificationsReadBtn.addEventListener('click', function () {
+            localStorage.setItem('adminNotificationsRead', '1');
+            if (notificationBadge) {
+                notificationBadge.style.display = 'none';
+            }
+            if (notificationDropdown) {
+                notificationDropdown.classList.remove('show');
+            }
+        });
+    }
+
     if (avatarBtn && avatarDropdown) {
         avatarBtn.addEventListener('click', function (e) {
             e.stopPropagation();
             avatarDropdown.classList.toggle('show');
+            if (notificationDropdown) {
+                notificationDropdown.classList.remove('show');
+            }
         });
 
         document.addEventListener('click', function (e) {
-            if (!avatarDropdown.contains(e.target) && !avatarBtn.contains(e.target)) {
+            const clickOutsideAvatar = !avatarDropdown.contains(e.target) && !avatarBtn.contains(e.target);
+            const clickOutsideNotification = !notificationDropdown || (!notificationDropdown.contains(e.target) && (!notificationBtn || !notificationBtn.contains(e.target)));
+
+            if (clickOutsideAvatar) {
                 avatarDropdown.classList.remove('show');
+            }
+
+            if (clickOutsideNotification && notificationDropdown) {
+                notificationDropdown.classList.remove('show');
             }
         });
     }

@@ -199,6 +199,7 @@
                     <span class="feat-tag" style="background:#fef2f2;color:#ef4444;">Heatmap</span>
                 </div>
             </div>
+            {% if user.is_staff %}
             <div class="col-md-6 col-lg-4">
                 <div class="feat-card">
                     <div class="feat-card-icon" style="background:#f5f3ff;"><i class="fas fa-wand-magic-sparkles" style="color:#8b5cf6;"></i></div>
@@ -207,6 +208,7 @@
                     <span class="feat-tag" style="background:#f5f3ff;color:#8b5cf6;">AI</span>
                 </div>
             </div>
+            {% endif %}
             <div class="col-md-6 col-lg-4">
                 <div class="feat-card">
                     <div class="feat-card-icon" style="background:#eff6ff;"><i class="fas fa-draw-polygon" style="color:#3b82f6;"></i></div>
@@ -349,6 +351,7 @@
     </div>
 </section>
 
+{% if user.is_staff %}
 <!-- AI HIGHLIGHT -->
 <section class="ai-section">
     <div class="container">
@@ -373,15 +376,9 @@
                     </div>
                 </div>
 
-                {% if user.is_staff %}
                 <a href="{% url 'maintenance_list' %}" class="cta-btn" style="background: linear-gradient(135deg, #667eea, #764ba2); box-shadow: 0 4px 15px rgba(102,126,234,.3);">
                     <i class="fas fa-wand-magic-sparkles"></i> Xem Đề xuất AI
                 </a>
-                {% else %}
-                <a href="{% url 'tree_list' %}" class="cta-btn" style="background: linear-gradient(135deg, #667eea, #764ba2); box-shadow: 0 4px 15px rgba(102,126,234,.3);">
-                    <i class="fas fa-tree"></i> Xem danh sách cây
-                </a>
-                {% endif %}
             </div>
             <div class="col-lg-6">
                 <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.8rem;">
@@ -420,6 +417,7 @@
         </div>
     </div>
 </section>
+{% endif %}
 
 <!-- RECENT ACTIVITY + QUICK ACTIONS -->
 <section class="activity-section">
