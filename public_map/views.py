@@ -1,16 +1,50 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import UrbanTree, MaintenanceLog, TreeSpecies, ManagementZone
+from .models import UrbanTree, MaintenanceLog, TreeSpecies, ManagementZone, ActivityLog
 import json
 from django.db.models import Q, Max, Subquery, OuterRef, F, Value, CharField, Count
 from django.db.models.functions import Coalesce, TruncMonth
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.core.paginator import Paginator
 from datetime import datetime, date, timedelta
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from django.contrib.auth import logout
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie, csrf_exempt
+from django.utils import timezone
 import csv
+from functools import wraps
+
+
+def admin_required(view_func):
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        if not request.user.is_staff:
+            if request.path.startswith('/api/') or request.content_type == 'application/json':
+                return JsonResponse({
+                    'status': 'error',
+                    'error': 'Bạn không có quyền thực hiện thao tác này.'
+                }, status=403)
+            messages.error(request, '❌ Bạn không có quyền thực hiện thao tác này.')
+            return redirect('home')
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped_view
+
+
+def log_activity(request, action_type, entity_type, entity_code='', detail=''):
+    """Persist action traces for admin activity center."""
+    user = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
+    ActivityLog.objects.create(
+        user=user,
+        action_type=action_type,
+        entity_type=entity_type,
+        entity_code=entity_code or '',
+        detail=detail or '',
+    )
 
 @login_required
 @ensure_csrf_cookie
@@ -104,6 +138,13 @@ def tree_detail_view(request, tree_id):
         if 'image' in request.FILES:
             tree.image = request.FILES['image']
             tree.save()
+            log_activity(
+                request,
+                action_type='UPLOAD_IMAGE',
+                entity_type='TREE',
+                entity_code=tree.code,
+                detail=f'Cập nhật ảnh cây {tree.code}',
+            )
             messages.success(request, '✅ Cập nhật ảnh thành công!')
         
         # 2. Thêm lịch sử chăm sóc nếu có submit form
@@ -120,6 +161,13 @@ def tree_detail_view(request, tree_id):
                     action=action,
                     performer=performer,
                     note=note
+                )
+                log_activity(
+                    request,
+                    action_type='ADD_MAINTENANCE',
+                    entity_type='TREE',
+                    entity_code=tree.code,
+                    detail=f'Thêm chăm sóc {action} cho cây {tree.code} bởi {performer}',
                 )
                 # Cập nhật trạng thái cây nếu được chọn
                 new_status = request.POST.get('new_status', '')
@@ -222,6 +270,13 @@ def tree_add_view(request):
                 if i < len(images):
                     tree.image = images[i]
                 tree.save()
+                log_activity(
+                    request,
+                    action_type='ADD_TREE',
+                    entity_type='TREE',
+                    entity_code=code,
+                    detail=f'Thêm cây mới {code} ({species.name})',
+                )
                 created_codes.append(code)
                 last_tree = tree
 
@@ -263,8 +318,10 @@ def tree_add_view(request):
 
 # ============ SỬA CÂY ============
 @login_required
+@admin_required
 def tree_edit_view(request, tree_id):
     tree = get_object_or_404(UrbanTree, id=tree_id)
+    old_code = tree.code
     
     if request.method == 'POST':
         try:
@@ -280,6 +337,13 @@ def tree_edit_view(request, tree_id):
                 tree.image = request.FILES['image']
             
             tree.save()
+            log_activity(
+                request,
+                action_type='EDIT_TREE',
+                entity_type='TREE',
+                entity_code=tree.code,
+                detail=f'Cập nhật cây {old_code} -> {tree.code}',
+            )
             messages.success(request, f'✅ Cập nhật cây {tree.code} thành công!')
             return redirect('tree_detail', tree_id=tree.id)
         
@@ -299,11 +363,19 @@ def tree_edit_view(request, tree_id):
 
 # ============ XÓA CÂY ============
 @login_required
+@admin_required
 def tree_delete_view(request, tree_id):
     tree = get_object_or_404(UrbanTree, id=tree_id)
     
     if request.method == 'POST':
         code = tree.code
+        log_activity(
+            request,
+            action_type='DELETE_TREE',
+            entity_type='TREE',
+            entity_code=code,
+            detail=f'Xóa cây {code}',
+        )
         tree.delete()
         messages.success(request, f'✅ Xóa cây {code} thành công!')
         return redirect('tree_list')
@@ -341,6 +413,7 @@ def species_list_view(request):
 
 
 @login_required
+@admin_required
 def species_add_view(request):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
@@ -372,6 +445,13 @@ def species_add_view(request):
             watering_frequency_days=watering_freq,
             inspection_frequency_days=inspection_freq,
         )
+        log_activity(
+            request,
+            action_type='ADD_SPECIES',
+            entity_type='SPECIES',
+            entity_code=name,
+            detail=f'Thêm loài cây {name}',
+        )
         messages.success(request, f'✅ Thêm loài "{name}" thành công!')
         return redirect('species_list')
 
@@ -379,6 +459,7 @@ def species_add_view(request):
 
 
 @login_required
+@admin_required
 def species_edit_view(request, species_id):
     species = get_object_or_404(TreeSpecies, id=species_id)
 
@@ -411,6 +492,13 @@ def species_edit_view(request, species_id):
         species.watering_frequency_days = watering_freq
         species.inspection_frequency_days = inspection_freq
         species.save()
+        log_activity(
+            request,
+            action_type='EDIT_SPECIES',
+            entity_type='SPECIES',
+            entity_code=species.name,
+            detail=f'Cập nhật loài cây {species.name}',
+        )
         messages.success(request, f'✅ Cập nhật loài "{name}" thành công!')
         return redirect('species_list')
 
@@ -418,6 +506,7 @@ def species_edit_view(request, species_id):
 
 
 @login_required
+@admin_required
 def species_delete_view(request, species_id):
     species = get_object_or_404(TreeSpecies, id=species_id)
     if request.method == 'POST':
@@ -426,6 +515,13 @@ def species_delete_view(request, species_id):
             messages.error(request, f'❌ Không thể xóa! Loài "{species.name}" đang có {tree_count} cây liên kết.')
             return redirect('species_list')
         name = species.name
+        log_activity(
+            request,
+            action_type='DELETE_SPECIES',
+            entity_type='SPECIES',
+            entity_code=name,
+            detail=f'Xóa loài cây {name}',
+        )
         species.delete()
         messages.success(request, f'✅ Đã xóa loài "{name}" thành công!')
     return redirect('species_list')
@@ -433,6 +529,7 @@ def species_delete_view(request, species_id):
 
 # ============ DASHBOARD BÁO CÁO THỐNG KÊ ============
 @login_required
+@admin_required
 def dashboard_view(request):
     # Pie chart — số cây theo loài
     species_data = list(
@@ -497,6 +594,7 @@ def dashboard_view(request):
 
 # ============ EXPORT EXCEL/CSV ============
 @login_required
+@admin_required
 def export_trees_csv(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
     response['Content-Disposition'] = 'attachment; filename="danh_sach_cay.csv"'
@@ -510,6 +608,7 @@ def export_trees_csv(request):
 
 
 @login_required
+@admin_required
 def export_maintenance_csv(request):
     response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
     response['Content-Disposition'] = 'attachment; filename="lich_su_cham_soc.csv"'
@@ -543,6 +642,23 @@ def maintenance_list_view(request):
     action_choices = MaintenanceLog._meta.get_field('action').choices
 
     # ============ AI ĐỀ XUẤT CHĂM SÓC ============
+    if not request.user.is_staff:
+        return render(request, 'maintenance_list.html', {
+            'logs': logs,
+            'query': query,
+            'action_filter': action_filter,
+            'action_choices': action_choices,
+            'recommendations': [],
+            'ai_stats': {
+                'total': 0,
+                'critical': 0,
+                'high': 0,
+                'medium': 0,
+                'total_issues': 0,
+            },
+            'today': date.today(),
+        })
+
     today = date.today()
     recommendations = []
 
@@ -849,6 +965,14 @@ def bulk_maintenance_view(request):
                 note=note
             )
             created_count += 1
+
+        log_activity(
+            request,
+            action_type='BULK_MAINTENANCE',
+            entity_type='TREE',
+            entity_code=f'{created_count} cây',
+            detail=f'Chăm sóc hàng loạt {action} cho {created_count} cây bởi {performer}',
+        )
         
         return JsonResponse({
             'status': 'ok',
@@ -877,3 +1001,370 @@ def custom_logout_view(request):
 def csrf_failure(request, reason=""):
     """Custom CSRF failure view"""
     return render(request, 'csrf_error.html', {'reason': reason}, status=403)
+
+
+# ============ ADMIN DASHBOARD ============
+@login_required
+@admin_required
+def admin_dashboard_view(request):
+    """Admin dashboard - Statistics and management"""
+    from django.contrib.auth.models import User
+    
+    total_users = User.objects.count()
+    admin_users = User.objects.filter(is_staff=True).count()
+    regular_users = total_users - admin_users
+    
+    total_trees = UrbanTree.objects.count()
+    total_species = TreeSpecies.objects.count()
+    total_logs = MaintenanceLog.objects.count()
+    total_zones = ManagementZone.objects.count()
+    active_users = User.objects.filter(is_active=True).count()
+    inactive_users = total_users - active_users
+    new_users_this_week = User.objects.filter(date_joined__date__gte=(date.today() - timedelta(days=6))).count()
+    
+    # Recent users
+    recent_users = User.objects.order_by('-date_joined')[:5]
+    
+    # Recent activities
+    recent_trees = UrbanTree.objects.order_by('-id')[:5]
+    recent_logs = MaintenanceLog.objects.order_by('-date')[:5]
+
+    # Registration chart data (last 7 days)
+    chart_days = [date.today() - timedelta(days=i) for i in range(6, -1, -1)]
+    registrations_by_day = []
+    labels_by_day = []
+    for d in chart_days:
+        labels_by_day.append(d.strftime('%d/%m'))
+        registrations_by_day.append(User.objects.filter(date_joined__date=d).count())
+    
+    context = {
+        'total_users': total_users,
+        'admin_users': admin_users,
+        'regular_users': regular_users,
+        'total_trees': total_trees,
+        'total_species': total_species,
+        'total_logs': total_logs,
+        'total_zones': total_zones,
+        'active_users': active_users,
+        'inactive_users': inactive_users,
+        'new_users_this_week': new_users_this_week,
+        'recent_users': recent_users,
+        'recent_trees': recent_trees,
+        'recent_logs': recent_logs,
+        'registration_labels_json': json.dumps(labels_by_day),
+        'registration_values_json': json.dumps(registrations_by_day),
+        'user_status_values_json': json.dumps([active_users, inactive_users]),
+        'now': timezone.localtime(),
+    }
+    
+    return render(request, 'admin_dashboard.html', context)
+
+
+# ============ ADMIN USER MANAGEMENT ============
+@login_required
+@admin_required
+def admin_users_view(request):
+    """Admin user management page"""
+    from django.contrib.auth.models import User
+
+    # Handle create new user
+    if request.method == 'POST' and 'create_user' in request.POST:
+        username = request.POST.get('new_username', '').strip()
+        email = request.POST.get('new_email', '').strip()
+        password = request.POST.get('new_password', '').strip()
+        is_staff = 'new_is_staff' in request.POST
+        is_active = 'new_is_active' in request.POST
+        first_name = request.POST.get('new_first_name', '').strip()
+        last_name = request.POST.get('new_last_name', '').strip()
+
+        if not username or not password:
+            messages.error(request, '❌ Username và Password không được để trống')
+        elif len(password) < 8:
+            messages.error(request, '❌ Password phải có ít nhất 8 ký tự')
+        elif User.objects.filter(username=username).exists():
+            messages.error(request, f'❌ Username "{username}" đã tồn tại')
+        elif len(first_name) > 150 or len(last_name) > 150:
+            messages.error(request, '❌ Họ hoặc tên quá dài (tối đa 150 ký tự)')
+        elif email:
+            try:
+                validate_email(email)
+                if User.objects.filter(email__iexact=email).exists():
+                    messages.error(request, f'❌ Email "{email}" đã được sử dụng')
+                    return redirect('admin_users')
+            except ValidationError:
+                messages.error(request, '❌ Email không hợp lệ')
+                return redirect('admin_users')
+            try:
+                validate_password(password)
+            except ValidationError as e:
+                for err in e.messages:
+                    messages.error(request, f'❌ {err}')
+                return redirect('admin_users')
+            try:
+                User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name,
+                    is_staff=is_staff,
+                    is_active=is_active,
+                )
+                messages.success(request, f'✅ Tạo người dùng {username} thành công')
+            except Exception as e:
+                messages.error(request, f'❌ Lỗi: {str(e)}')
+            return redirect('admin_users')
+        else:
+            try:
+                validate_password(password)
+            except ValidationError as e:
+                for err in e.messages:
+                    messages.error(request, f'❌ {err}')
+                return redirect('admin_users')
+            try:
+                User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password,
+                    first_name=first_name,
+                    last_name=last_name,
+                    is_staff=is_staff,
+                    is_active=is_active,
+                )
+                messages.success(request, f'✅ Tạo người dùng {username} thành công')
+            except Exception as e:
+                messages.error(request, f'❌ Lỗi: {str(e)}')
+        return redirect('admin_users')
+    
+    # Handle user permission toggle
+    if request.method == 'POST' and 'toggle_admin' in request.POST:
+        user_id = request.POST.get('user_id')
+        try:
+            user = User.objects.get(id=user_id)
+            if user.id != request.user.id:  # Không cho phép tự thay đổi quyền
+                user.is_staff = not user.is_staff
+                user.save()
+                messages.success(request, f'✅ Đã cập nhật quyền cho {user.username}')
+            else:
+                messages.error(request, '❌ Bạn không thể thay đổi quyền của chính mình')
+        except User.DoesNotExist:
+            messages.error(request, '❌ Người dùng không tồn tại')
+        return redirect('admin_users')
+
+    # Handle user active/banned toggle
+    if request.method == 'POST' and 'toggle_active' in request.POST:
+        user_id = request.POST.get('user_id')
+        try:
+            user = User.objects.get(id=user_id)
+            if user.id != request.user.id:
+                user.is_active = not user.is_active
+                user.save(update_fields=['is_active'])
+                state = 'kích hoạt' if user.is_active else 'khóa'
+                messages.success(request, f'✅ Đã {state} tài khoản {user.username}')
+            else:
+                messages.error(request, '❌ Bạn không thể khóa tài khoản của chính mình')
+        except User.DoesNotExist:
+            messages.error(request, '❌ Người dùng không tồn tại')
+        return redirect('admin_users')
+
+    # Handle edit user profile from modal
+    if request.method == 'POST' and 'edit_user' in request.POST:
+        user_id = request.POST.get('user_id')
+        try:
+            target = User.objects.get(id=user_id)
+            edit_email = request.POST.get('edit_email', '').strip()
+            edit_first_name = request.POST.get('edit_first_name', '').strip()
+            edit_last_name = request.POST.get('edit_last_name', '').strip()
+            edit_is_staff = 'edit_is_staff' in request.POST
+            edit_is_active = 'edit_is_active' in request.POST
+
+            if edit_email:
+                try:
+                    validate_email(edit_email)
+                except ValidationError:
+                    messages.error(request, '❌ Email không hợp lệ')
+                    return redirect('admin_users')
+                if User.objects.filter(email__iexact=edit_email).exclude(id=target.id).exists():
+                    messages.error(request, '❌ Email này đã được tài khoản khác sử dụng')
+                    return redirect('admin_users')
+
+            if len(edit_first_name) > 150 or len(edit_last_name) > 150:
+                messages.error(request, '❌ Họ hoặc tên quá dài (tối đa 150 ký tự)')
+                return redirect('admin_users')
+
+            if target.id == request.user.id and not edit_is_staff:
+                messages.error(request, '❌ Bạn không thể tự hạ quyền Admin của chính mình')
+                return redirect('admin_users')
+
+            if target.id == request.user.id and not edit_is_active:
+                messages.error(request, '❌ Bạn không thể tự khóa tài khoản của chính mình')
+                return redirect('admin_users')
+
+            target.email = edit_email
+            target.first_name = edit_first_name
+            target.last_name = edit_last_name
+            target.is_staff = edit_is_staff
+            target.is_active = edit_is_active
+            target.save()
+            messages.success(request, f'✅ Đã cập nhật thông tin người dùng {target.username}')
+        except User.DoesNotExist:
+            messages.error(request, '❌ Người dùng không tồn tại')
+        return redirect('admin_users')
+    
+    # Handle delete user
+    if request.method == 'POST' and 'delete_user' in request.POST:
+        user_id = request.POST.get('user_id')
+        try:
+            user = User.objects.get(id=user_id)
+            if user.id != request.user.id:
+                username = user.username
+                user.delete()
+                messages.success(request, f'✅ Đã xóa người dùng {username}')
+            else:
+                messages.error(request, '❌ Bạn không thể xóa chính mình')
+        except User.DoesNotExist:
+            messages.error(request, '❌ Người dùng không tồn tại')
+        return redirect('admin_users')
+    
+    # Query with search/filter/pagination
+    q = request.GET.get('q', '').strip()
+    role = request.GET.get('role', '').strip()
+    status = request.GET.get('status', '').strip()
+
+    users_qs = User.objects.all().order_by('-date_joined')
+    if q:
+        users_qs = users_qs.filter(
+            Q(username__icontains=q)
+            | Q(email__icontains=q)
+            | Q(first_name__icontains=q)
+            | Q(last_name__icontains=q)
+        )
+    if role == 'admin':
+        users_qs = users_qs.filter(is_staff=True)
+    elif role == 'user':
+        users_qs = users_qs.filter(is_staff=False)
+    if status == 'active':
+        users_qs = users_qs.filter(is_active=True)
+    elif status == 'banned':
+        users_qs = users_qs.filter(is_active=False)
+
+    paginator = Paginator(users_qs, 10)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    
+    context = {
+        'users': page_obj,
+        'page_obj': page_obj,
+        'total_users': User.objects.count(),
+        'admin_users': User.objects.filter(is_staff=True).count(),
+        'regular_users': User.objects.filter(is_staff=False).count(),
+        'active_users': User.objects.filter(is_active=True).count(),
+        'banned_users': User.objects.filter(is_active=False).count(),
+        'q': q,
+        'selected_role': role,
+        'selected_status': status,
+    }
+    
+    return render(request, 'admin_users.html', context)
+
+
+# ============ ADMIN ACTIVITY LOGS ============
+@login_required
+@admin_required
+def admin_activity_view(request):
+    q = request.GET.get('q', '').strip()
+    action_filter = request.GET.get('action', '').strip()
+
+    logs_qs = ActivityLog.objects.select_related('user').order_by('-created_at')
+
+    if q:
+        logs_qs = logs_qs.filter(
+            Q(user__username__icontains=q)
+            | Q(entity_code__icontains=q)
+            | Q(detail__icontains=q)
+        )
+
+    if action_filter:
+        logs_qs = logs_qs.filter(action_type=action_filter)
+
+    paginator = Paginator(logs_qs, 20)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj': page_obj,
+        'logs': page_obj,
+        'q': q,
+        'selected_action': action_filter,
+        'action_choices': ActivityLog.ACTION_CHOICES,
+    }
+    return render(request, 'admin_activity.html', context)
+
+
+# ============ USER PROFILE PAGE ============
+@login_required
+def user_profile_view(request):
+    """User profile page - Personal information"""
+    from django.contrib.auth.models import User
+    
+    user = request.user
+    
+    # Handle profile update
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'update_profile':
+            first_name = request.POST.get('first_name', user.first_name).strip()
+            last_name = request.POST.get('last_name', user.last_name).strip()
+            email = request.POST.get('email', user.email).strip()
+
+            if email:
+                try:
+                    validate_email(email)
+                except ValidationError:
+                    messages.error(request, '❌ Email không hợp lệ')
+                    return redirect('user_profile')
+
+                if User.objects.filter(email__iexact=email).exclude(id=user.id).exists():
+                    messages.error(request, '❌ Email này đã được tài khoản khác sử dụng')
+                    return redirect('user_profile')
+
+            if len(first_name) > 150 or len(last_name) > 150:
+                messages.error(request, '❌ Họ hoặc tên quá dài (tối đa 150 ký tự)')
+                return redirect('user_profile')
+
+            user.first_name = first_name
+            user.last_name = last_name
+            user.email = email
+            user.save()
+            messages.success(request, '✅ Cập nhật hồ sơ thành công')
+            return redirect('user_profile')
+        
+        elif action == 'change_password':
+            old_password = request.POST.get('old_password', '')
+            new_password = request.POST.get('new_password', '')
+            confirm_password = request.POST.get('confirm_password', '')
+            
+            if not user.check_password(old_password):
+                messages.error(request, '❌ Mật khẩu cũ không đúng')
+            elif new_password != confirm_password:
+                messages.error(request, '❌ Mật khẩu mới không trùng khớp')
+            elif len(new_password) < 8:
+                messages.error(request, '❌ Mật khẩu phải có ít nhất 8 ký tự')
+            else:
+                try:
+                    validate_password(new_password, user)
+                except ValidationError as e:
+                    for err in e.messages:
+                        messages.error(request, f'❌ {err}')
+                    return redirect('user_profile')
+
+                user.set_password(new_password)
+                user.save()
+                messages.success(request, '✅ Đổi mật khẩu thành công. Hãy đăng nhập lại')
+                return redirect('login')
+    
+    context = {
+        'user': user,
+        'role': 'Admin' if user.is_staff else 'User',
+    }
+    
+    return render(request, 'user_profile.html', context)

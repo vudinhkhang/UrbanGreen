@@ -1,0 +1,272 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Quản lý người dùng - UrbanGreen{% endblock %}
+{% block menu_users %}active{% endblock %}
+{% block admin_page_title %}Quản lý Người dùng{% endblock %}
+
+{% block admin_extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_users.css' %}">
+{% endblock %}
+
+{% block admin_content %}
+<div class="users-summary">
+    <article class="summary-card"><p>Tổng User</p><h3>{{ total_users }}</h3></article>
+    <article class="summary-card"><p>Admin</p><h3>{{ admin_users }}</h3></article>
+    <article class="summary-card"><p>User thường</p><h3>{{ regular_users }}</h3></article>
+    <article class="summary-card"><p>Đang hoạt động</p><h3>{{ active_users }}</h3></article>
+</div>
+
+<div class="users-toolbar">
+    <form method="get" class="toolbar-left">
+        <input type="text" class="form-control" name="q" value="{{ q }}" placeholder="Tìm theo tên, username, email...">
+        <select class="form-select" name="role">
+            <option value="">Tất cả vai trò</option>
+            <option value="admin" {% if selected_role == 'admin' %}selected{% endif %}>Admin</option>
+            <option value="user" {% if selected_role == 'user' %}selected{% endif %}>User</option>
+        </select>
+        <select class="form-select" name="status">
+            <option value="">Tất cả trạng thái</option>
+            <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+            <option value="banned" {% if selected_status == 'banned' %}selected{% endif %}>Banned</option>
+        </select>
+        <button class="btn btn-outline-primary" type="submit">Lọc</button>
+        <a class="btn btn-outline-secondary" href="{% url 'admin_users' %}">Reset</a>
+    </form>
+
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+        <i class="fas fa-plus"></i> Thêm người dùng
+    </button>
+</div>
+
+<div class="users-table-card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Ảnh đại diện & Họ tên</th>
+                    <th>Email</th>
+                    <th>Vai trò</th>
+                    <th>Trạng thái</th>
+                    <th>Ngày đăng ký</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in users %}
+                <tr>
+                    <td>{{ item.id }}</td>
+                    <td>
+                        <div class="user-cell">
+                            <span class="user-avatar">{{ item.username|first|upper }}</span>
+                            <div class="user-name">
+                                <strong>{% if item.first_name or item.last_name %}{{ item.first_name }} {{ item.last_name }}{% else %}{{ item.username }}{% endif %}</strong>
+                                <small>@{{ item.username }}{% if item == request.user %} (Bạn){% endif %}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>{{ item.email|default:'---' }}</td>
+                    <td>
+                        {% if item.is_staff %}
+                        <span class="role-badge role-admin">Admin</span>
+                        {% else %}
+                        <span class="role-badge role-user">User</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if item.is_active %}
+                        <span class="status-badge status-active">Active</span>
+                        {% else %}
+                        <span class="status-badge status-banned">Banned</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.date_joined|date:"d/m/Y" }}</td>
+                    <td>
+                        <div class="action-set">
+                            <button type="button" class="icon-btn" title="Chỉnh sửa"
+                                data-bs-toggle="modal"
+                                data-bs-target="#editUserModal"
+                                data-id="{{ item.id }}"
+                                data-username="{{ item.username }}"
+                                data-email="{{ item.email|default:'' }}"
+                                data-firstname="{{ item.first_name|default:'' }}"
+                                data-lastname="{{ item.last_name|default:'' }}"
+                                data-isstaff="{% if item.is_staff %}1{% else %}0{% endif %}"
+                                data-isactive="{% if item.is_active %}1{% else %}0{% endif %}">
+                                <i class="fas fa-pen"></i>
+                            </button>
+
+                            {% if item != request.user %}
+                            <form method="post" onsubmit="return confirm('Xác nhận khóa/mở khóa user {{ item.username }}?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="user_id" value="{{ item.id }}">
+                                <input type="hidden" name="toggle_active" value="1">
+                                <button class="icon-btn" title="Khóa / Mở khóa" type="submit"><i class="fas fa-user-lock"></i></button>
+                            </form>
+
+                            <form method="post" onsubmit="return confirm('Bạn chắc chắn muốn xóa user {{ item.username }}?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="user_id" value="{{ item.id }}">
+                                <input type="hidden" name="delete_user" value="1">
+                                <button class="icon-btn" title="Xóa user" type="submit"><i class="fas fa-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">Không có dữ liệu phù hợp bộ lọc.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination-wrap">
+        <div class="text-muted small">Trang {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</div>
+        <nav>
+            <ul class="pagination pagination-sm">
+                {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?q={{ q }}&role={{ selected_role }}&status={{ selected_status }}&page={{ page_obj.previous_page_number }}">Trước</a></li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">Trước</span></li>
+                {% endif %}
+
+                <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?q={{ q }}&role={{ selected_role }}&status={{ selected_status }}&page={{ page_obj.next_page_number }}">Sau</a></li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">Sau</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Thêm người dùng mới</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="create_user" value="1">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-control" name="new_username" required maxlength="150" pattern="^[\w.@+-]+$">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="new_email" maxlength="254" autocomplete="email">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tên</label>
+                            <input type="text" class="form-control" name="new_first_name" maxlength="150">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Họ</label>
+                            <input type="text" class="form-control" name="new_last_name" maxlength="150">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Mật khẩu</label>
+                            <input type="password" class="form-control" name="new_password" required minlength="8" autocomplete="new-password">
+                            <div class="form-text">Tối thiểu 8 ký tự, không dùng mật khẩu quá phổ biến.</div>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="new_is_staff" id="new_is_staff_modal">
+                                <label class="form-check-label" for="new_is_staff_modal">Cấp quyền Admin</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="new_is_active" id="new_is_active_modal" checked>
+                                <label class="form-check-label" for="new_is_active_modal">Kích hoạt tài khoản</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu người dùng</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Chỉnh sửa người dùng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="edit_user" value="1">
+                <input type="hidden" name="user_id" id="edit_user_id">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-control" id="edit_username" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" class="form-control" name="edit_email" id="edit_email" maxlength="254" autocomplete="email">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Tên</label>
+                            <input type="text" class="form-control" name="edit_first_name" id="edit_first_name" maxlength="150">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Họ</label>
+                            <input type="text" class="form-control" name="edit_last_name" id="edit_last_name" maxlength="150">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="edit_is_staff" id="edit_is_staff">
+                                <label class="form-check-label" for="edit_is_staff">Quyền Admin</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="edit_is_active" id="edit_is_active">
+                                <label class="form-check-label" for="edit_is_active">Trạng thái Active</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="submit" class="btn btn-primary">Lưu thay đổi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script>
+const editModal = document.getElementById('editUserModal');
+if (editModal) {
+    editModal.addEventListener('show.bs.modal', function (event) {
+        const btn = event.relatedTarget;
+        document.getElementById('edit_user_id').value = btn.getAttribute('data-id') || '';
+        document.getElementById('edit_username').value = btn.getAttribute('data-username') || '';
+        document.getElementById('edit_email').value = btn.getAttribute('data-email') || '';
+        document.getElementById('edit_first_name').value = btn.getAttribute('data-firstname') || '';
+        document.getElementById('edit_last_name').value = btn.getAttribute('data-lastname') || '';
+        document.getElementById('edit_is_staff').checked = btn.getAttribute('data-isstaff') === '1';
+        document.getElementById('edit_is_active').checked = btn.getAttribute('data-isactive') === '1';
+    });
+}
+</script>
+{% endblock %}

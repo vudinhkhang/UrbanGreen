@@ -98,8 +98,12 @@
                 <p>Nền tảng GIS tích hợp AI đề xuất chăm sóc, bản đồ nhiệt, vùng quản lý và phân tích dữ liệu toàn diện cho cây xanh đô thị.</p>
                 <div class="hero-cta">
                     <a href="{% url 'map' %}" class="cta-btn"><i class="fas fa-map-marked-alt"></i> Bản đồ GIS</a>
+                    {% if user.is_staff %}
                     <a href="{% url 'maintenance_list' %}" class="cta-outline"><i class="fas fa-wand-magic-sparkles"></i> AI Đề xuất</a>
                     <a href="{% url 'dashboard' %}" class="cta-outline"><i class="fas fa-chart-pie"></i> Báo cáo</a>
+                    {% else %}
+                    <a href="{% url 'tree_list' %}" class="cta-outline"><i class="fas fa-tree"></i> Danh sách cây</a>
+                    {% endif %}
                 </div>
             </div>
             <div class="col-lg-5 text-center mt-4 mt-lg-0">
@@ -369,9 +373,15 @@
                     </div>
                 </div>
 
+                {% if user.is_staff %}
                 <a href="{% url 'maintenance_list' %}" class="cta-btn" style="background: linear-gradient(135deg, #667eea, #764ba2); box-shadow: 0 4px 15px rgba(102,126,234,.3);">
                     <i class="fas fa-wand-magic-sparkles"></i> Xem Đề xuất AI
                 </a>
+                {% else %}
+                <a href="{% url 'tree_list' %}" class="cta-btn" style="background: linear-gradient(135deg, #667eea, #764ba2); box-shadow: 0 4px 15px rgba(102,126,234,.3);">
+                    <i class="fas fa-tree"></i> Xem danh sách cây
+                </a>
+                {% endif %}
             </div>
             <div class="col-lg-6">
                 <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.8rem;">
@@ -445,6 +455,7 @@
                             <small>Heatmap · Vùng quản lý · Bán kính</small>
                         </div>
                     </a>
+                    {% if user.is_staff %}
                     <a href="{% url 'tree_add' %}" class="quick-action">
                         <div class="quick-action-icon" style="background:#eff6ff;"><i class="fas fa-plus-circle" style="color:#3b82f6;"></i></div>
                         <div>
@@ -473,6 +484,29 @@
                             <small>{{ total_species }} loài · Đặc tính · CRUD</small>
                         </div>
                     </a>
+                    {% else %}
+                    <a href="{% url 'tree_list' %}" class="quick-action">
+                        <div class="quick-action-icon" style="background:#eff6ff;"><i class="fas fa-tree" style="color:#3b82f6;"></i></div>
+                        <div>
+                            <strong>Danh sách cây</strong><br>
+                            <small>Tra cứu hồ sơ cây theo mã và trạng thái</small>
+                        </div>
+                    </a>
+                    <a href="{% url 'tree_add' %}" class="quick-action">
+                        <div class="quick-action-icon" style="background:#ecfdf5;"><i class="fas fa-plus-circle" style="color:#10b981;"></i></div>
+                        <div>
+                            <strong>Trồng cây mới</strong><br>
+                            <small>Thêm cây trực tiếp ngoài hiện trường</small>
+                        </div>
+                    </a>
+                    <a href="{% url 'user_profile' %}" class="quick-action">
+                        <div class="quick-action-icon" style="background:#f5f3ff;"><i class="fas fa-user" style="color:#8b5cf6;"></i></div>
+                        <div>
+                            <strong>Hồ sơ cá nhân</strong><br>
+                            <small>Cập nhật thông tin và bảo mật tài khoản</small>
+                        </div>
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>

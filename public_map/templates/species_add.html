@@ -1,9 +1,28 @@
-{% extends "base.html" %}
+{% extends 'admin_base.html' %}
 
 {% block title %}Thêm Loài Cây{% endblock %}
+{% block menu_species %}active{% endblock %}
+{% block admin_page_title %}Thêm loài cây{% endblock %}
 
-{% block content %}
-<div class="container py-4">
+{% block admin_extra_css %}
+<style>
+    .species-form-shell {
+        max-width: 920px;
+        display: grid;
+        gap: 14px;
+    }
+    .species-form-card {
+        background: #fff;
+        border: 1px solid #e8eef5;
+        border-radius: 14px;
+        box-shadow: 0 4px 14px rgba(7, 32, 66, 0.05);
+        padding: 16px;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="species-form-shell">
     <div class="page-header">
         <div>
             <h2 class="page-title"><i class="fas fa-plus-circle"></i> Thêm Loài Cây Mới</h2>
@@ -15,10 +34,7 @@
             </a>
         </div>
     </div>
-    <div class="row">
-        <div class="col-md-8 offset-md-2">
-            <div class="card">
-                <div class="card-body">
+    <div class="species-form-card">
                     <form method="post">
                         {% csrf_token %}
                         <div class="mb-3">
@@ -89,9 +105,6 @@
                         <button class="btn btn-primary">Lưu</button>
                         <a href="{% url 'species_list' %}" class="btn btn-secondary">Hủy</a>
                     </form>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 {% endblock %}

@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 # 1. Bảng Loại Cây
 class TreeSpecies(models.Model):
@@ -68,3 +69,41 @@ class ManagementZone(models.Model):
 
     def __str__(self):
         return self.name
+
+
+# 5. Bảng nhật ký hoạt động hệ thống
+class ActivityLog(models.Model):
+    ACTION_CHOICES = [
+        ('ADD_TREE', 'Thêm cây'),
+        ('EDIT_TREE', 'Sửa cây'),
+        ('DELETE_TREE', 'Xóa cây'),
+        ('ADD_SPECIES', 'Thêm loài'),
+        ('EDIT_SPECIES', 'Sửa loài'),
+        ('DELETE_SPECIES', 'Xóa loài'),
+        ('ADD_MAINTENANCE', 'Thêm chăm sóc'),
+        ('BULK_MAINTENANCE', 'Chăm sóc hàng loạt'),
+        ('UPLOAD_IMAGE', 'Cập nhật ảnh'),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='activity_logs',
+        verbose_name='Người thao tác',
+    )
+    action_type = models.CharField(max_length=32, choices=ACTION_CHOICES, verbose_name='Hành động')
+    entity_type = models.CharField(max_length=32, blank=True, verbose_name='Đối tượng')
+    entity_code = models.CharField(max_length=120, blank=True, verbose_name='Mã/Tên đối tượng')
+    detail = models.TextField(blank=True, verbose_name='Chi tiết')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Thời gian')
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Nhật ký hoạt động'
+        verbose_name_plural = 'Nhật ký hoạt động'
+
+    def __str__(self):
+        actor = self.user.username if self.user else 'unknown'
+        return f'[{self.created_at:%d/%m/%Y %H:%M}] {actor}: {self.get_action_display()}'

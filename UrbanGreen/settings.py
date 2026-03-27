@@ -16,6 +16,26 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def _load_env_file(env_file_path: Path):
+    """Load key=value pairs from .env into os.environ if not already set."""
+    if not env_file_path.exists():
+        return
+
+    for raw_line in env_file_path.read_text(encoding='utf-8').splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+
+        key, value = line.split('=', 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key:
+            os.environ.setdefault(key, value)
+
+
+_load_env_file(BASE_DIR / '.env')
+
 # Đường dẫn URL để truy cập ảnh (VD: http://domain.com/media/...)
 MEDIA_URL = '/media/'
 
@@ -27,12 +47,12 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-#c-5aku2-+6g-ofk@^+n*^g=tv1a(#@f&x==sy2b_wh6x4obd6"
+SECRET_KEY = os.getenv('SECRET_KEY', "django-insecure-#c-5aku2-+6g-ofk@^+n*^g=tv1a(#@f&x==sy2b_wh6x4obd6")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True').lower() in ('1', 'true', 'yes', 'on')
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = [host.strip() for host in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if host.strip()]
 
 
 # Application definition
@@ -51,6 +71,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "public_map.middleware.RelaxNullOriginInDebugMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -79,13 +100,27 @@ WSGI_APPLICATION = "UrbanGreen.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+USE_POSTGRES = os.getenv('USE_POSTGRES', '0').lower() in ('1', 'true', 'yes', 'on')
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+if USE_POSTGRES:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('POSTGRES_DB', 'urbangreen_db'),
+            'USER': os.getenv('POSTGRES_USER', 'urbangreen_user'),
+            'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),
+            'HOST': os.getenv('POSTGRES_HOST', '127.0.0.1'),
+            'PORT': os.getenv('POSTGRES_PORT', '5432'),
+            'CONN_MAX_AGE': int(os.getenv('POSTGRES_CONN_MAX_AGE', '60')),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -145,3 +180,14 @@ CSRF_FAILURE_VIEW = 'public_map.views.csrf_failure'
 # For development: disable strict REFERER/ORIGIN checking
 if DEBUG:
     CSRF_REFERER_NEEDS_HTTPS = False
+
+# ============ MAILTRAP EMAIL CONFIGURATION ============
+# Email backend - Mailtrap SMTP
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'live.smtp.mailtrap.io'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'your_mailtrap_username'  # ← Thay bằng username của bạn từ Mailtrap
+EMAIL_HOST_PASSWORD = 'your_mailtrap_password'  # ← Thay bằng password của bạn từ Mailtrap
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = 'noreply@urbangreenmanagement.com'
+SERVER_EMAIL = 'noreply@urbangreenmanagement.com'

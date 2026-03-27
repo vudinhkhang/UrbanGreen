@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block meta_description %}Trang quan tri he thong Urban Green danh cho quan tri vien.{% endblock %}
+{% block meta_robots %}noindex,nofollow,noarchive{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_shell.css' %}">
+{% block admin_extra_css %}{% endblock %}
+{% endblock %}
+
+{% block global_messages %}{% endblock %}
+
+{% block content %}
+<div class="admin-shell">
+    <aside class="admin-sidebar" id="adminSidebar">
+        <div class="admin-sidebar-top">
+            <a href="{% url 'admin_dashboard' %}" class="admin-logo">
+                <i class="fas fa-leaf"></i>
+                <span class="logo-text">UrbanGreen Admin</span>
+            </a>
+            <button type="button" class="sidebar-collapse-btn" id="sidebarCollapseBtn" aria-label="Thu gọn menu">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+
+        <nav class="admin-menu" aria-label="Dieu huong quan tri">
+            <a href="{% url 'admin_dashboard' %}" class="menu-item {% block menu_dashboard %}{% endblock %}">
+                <i class="fas fa-chart-line"></i>
+                <span>Tổng quan</span>
+            </a>
+            <a href="{% url 'admin_users' %}" class="menu-item {% block menu_users %}{% endblock %}">
+                <i class="fas fa-users"></i>
+                <span>Quản lý người dùng</span>
+            </a>
+            <a href="{% url 'tree_list' %}" class="menu-item {% block menu_trees %}{% endblock %}">
+                <i class="fas fa-tree"></i>
+                <span>Quản lý Cây</span>
+            </a>
+            <a href="{% url 'admin_activities' %}" class="menu-item {% block menu_logs %}{% endblock %}">
+                <i class="fas fa-clipboard-list"></i>
+                <span>Nhật ký hoạt động</span>
+            </a>
+            <a href="{% url 'dashboard' %}" class="menu-item {% block menu_reports %}{% endblock %}">
+                <i class="fas fa-chart-pie"></i>
+                <span>Phân tích báo cáo</span>
+            </a>
+        </nav>
+    </aside>
+
+    <div class="admin-main" id="adminMain">
+        <header class="admin-topbar">
+            <div class="topbar-left">
+                <h1 class="admin-page-title">{% block admin_page_title %}Trang quản trị{% endblock %}</h1>
+            </div>
+
+            <div class="topbar-right">
+                <form method="get" action="{% url 'admin_users' %}" class="admin-global-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" name="q" placeholder="Tìm user theo tên hoặc email..." value="{{ q|default:'' }}">
+                </form>
+
+                <div class="admin-avatar-menu">
+                    <button type="button" class="avatar-btn" id="avatarBtn">
+                        <span class="avatar-circle">{{ user.username|first|upper }}</span>
+                        <span class="avatar-name">{{ user.username }}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="avatar-dropdown" id="avatarDropdown">
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit"><i class="fas fa-sign-out-alt"></i> Đăng xuất</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="admin-content" aria-label="Noi dung quan tri">
+            {% if messages %}
+            <div class="admin-alerts">
+                {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-3" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% block admin_content %}{% endblock %}
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const sidebar = document.getElementById('adminSidebar');
+    const main = document.getElementById('adminMain');
+    const collapseBtn = document.getElementById('sidebarCollapseBtn');
+    const avatarBtn = document.getElementById('avatarBtn');
+    const avatarDropdown = document.getElementById('avatarDropdown');
+
+    if (localStorage.getItem('adminSidebarCollapsed') === '1') {
+        sidebar.classList.add('collapsed');
+        main.classList.add('expanded');
+    }
+
+    if (collapseBtn) {
+        collapseBtn.addEventListener('click', function () {
+            sidebar.classList.toggle('collapsed');
+            main.classList.toggle('expanded');
+            localStorage.setItem('adminSidebarCollapsed', sidebar.classList.contains('collapsed') ? '1' : '0');
+        });
+    }
+
+    if (avatarBtn && avatarDropdown) {
+        avatarBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            avatarDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!avatarDropdown.contains(e.target) && !avatarBtn.contains(e.target)) {
+                avatarDropdown.classList.remove('show');
+            }
+        });
+    }
+})();
+</script>
+{% block admin_extra_js %}{% endblock %}
+{% endblock %}

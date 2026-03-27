@@ -1,0 +1,134 @@
+{% extends 'admin_base.html' %}
+
+{% block title %}Nhật ký hoạt động{% endblock %}
+{% block menu_logs %}active{% endblock %}
+{% block admin_page_title %}Nhật ký hoạt động{% endblock %}
+
+{% block admin_extra_css %}
+<style>
+    .activity-wrap {
+        display: grid;
+        gap: 14px;
+    }
+    .activity-card {
+        background: #fff;
+        border: 1px solid #e8eef5;
+        border-radius: 14px;
+        box-shadow: 0 4px 14px rgba(7, 32, 66, 0.05);
+    }
+    .activity-card .card-body {
+        padding: 14px;
+    }
+    .activity-table th {
+        border-top: none;
+        color: #5f7489;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+    .activity-table td {
+        font-size: 0.9rem;
+        color: #2b3f53;
+        vertical-align: middle;
+    }
+    .activity-badge {
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 0.3rem 0.45rem;
+        border-radius: 999px;
+        background: #ecfdf5;
+        color: #047857;
+        border: 1px solid #a7f3d0;
+        white-space: nowrap;
+    }
+    .activity-filter {
+        display: grid;
+        grid-template-columns: 1fr 220px auto auto;
+        gap: 8px;
+    }
+    @media (max-width: 900px) {
+        .activity-filter {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="activity-wrap">
+    <section class="activity-card">
+        <div class="card-body">
+            <form method="get" class="activity-filter">
+                <input
+                    type="text"
+                    name="q"
+                    class="form-control form-control-sm"
+                    placeholder="Tìm theo user, mã cây/loài hoặc nội dung..."
+                    value="{{ q }}"
+                >
+                <select name="action" class="form-select form-select-sm">
+                    <option value="">Tất cả hành động</option>
+                    {% for code, label in action_choices %}
+                    <option value="{{ code }}" {% if selected_action == code %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button class="btn btn-primary btn-sm" type="submit"><i class="fas fa-search"></i> Lọc</button>
+                <a href="{% url 'admin_activities' %}" class="btn btn-outline-secondary btn-sm">Làm mới</a>
+            </form>
+        </div>
+    </section>
+
+    <section class="activity-card">
+        <div class="card-body table-responsive">
+            <table class="table activity-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Thời gian</th>
+                        <th>Người thao tác</th>
+                        <th>Hành động</th>
+                        <th>Đối tượng</th>
+                        <th>Chi tiết</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.created_at|date:'d/m/Y H:i' }}</td>
+                        <td>{{ log.user.username|default:'Hệ thống' }}</td>
+                        <td><span class="activity-badge">{{ log.get_action_display }}</span></td>
+                        <td>{{ log.entity_code|default:'-' }}</td>
+                        <td>{{ log.detail|default:'-' }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-3">Chưa có hoạt động nào được ghi nhận.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <section class="activity-card">
+        <div class="card-body">
+            <nav aria-label="Điều hướng trang">
+                <ul class="pagination pagination-sm mb-0 justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ q }}&action={{ selected_action }}">Trước</a>
+                    </li>
+                    {% endif %}
+                    <li class="page-item disabled"><span class="page-link">Trang {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}</span></li>
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ q }}&action={{ selected_action }}">Sau</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+    </section>
+    {% endif %}
+</div>
+{% endblock %}

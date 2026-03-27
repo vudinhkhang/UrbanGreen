@@ -1,0 +1,204 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Dashboard Quản trị - UrbanGreen{% endblock %}
+{% block menu_dashboard %}active{% endblock %}
+{% block admin_page_title %}Dashboard Tổng quan{% endblock %}
+
+{% block admin_extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}">
+{% endblock %}
+
+{% block admin_content %}
+<div class="dashboard-hero">
+    <div>
+        <h2>Xin chào, {{ user.username }}</h2>
+        <p>Giám sát hệ thống cây xanh, người dùng và nhật ký vận hành theo thời gian thực.</p>
+    </div>
+    <div class="hero-time">Cập nhật lúc {{ now|date:"d/m/Y H:i" }}</div>
+</div>
+
+<div class="metric-grid">
+    <article class="metric-card">
+        <p class="metric-label">Tổng User</p>
+        <h3>{{ total_users }}</h3>
+        <span class="metric-note">+{{ new_users_this_week }} user mới / 7 ngày</span>
+    </article>
+    <article class="metric-card">
+        <p class="metric-label">User Active</p>
+        <h3>{{ active_users }}</h3>
+        <span class="metric-note">Bị khóa: {{ inactive_users }}</span>
+    </article>
+    <article class="metric-card">
+        <p class="metric-label">Cây đang quản lý</p>
+        <h3>{{ total_trees }}</h3>
+        <span class="metric-note">Loài: {{ total_species }}</span>
+    </article>
+    <article class="metric-card">
+        <p class="metric-label">Nhật ký vận hành</p>
+        <h3>{{ total_logs }}</h3>
+        <span class="metric-note">Vùng quản lý: {{ total_zones }}</span>
+    </article>
+</div>
+
+<section class="admin-shortcuts" aria-label="Trung tam quan tri">
+    <a href="{% url 'tree_list' %}" class="shortcut-card">
+        <span class="shortcut-icon"><i class="fas fa-tree"></i></span>
+        <span class="shortcut-text">
+            <strong>Quản lý cây xanh</strong>
+            <small>Danh sách cây, hồ sơ chi tiết, chỉnh sửa</small>
+        </span>
+    </a>
+    <a href="{% url 'maintenance_list' %}" class="shortcut-card">
+        <span class="shortcut-icon"><i class="fas fa-clipboard-list"></i></span>
+        <span class="shortcut-text">
+            <strong>Nhật ký vận hành</strong>
+            <small>Lịch sử bảo trì, AI đề xuất, lọc theo hành động</small>
+        </span>
+    </a>
+    <a href="{% url 'dashboard' %}" class="shortcut-card">
+        <span class="shortcut-icon"><i class="fas fa-chart-pie"></i></span>
+        <span class="shortcut-text">
+            <strong>Phân tích báo cáo</strong>
+            <small>Biểu đồ tổng hợp và xuất dữ liệu CSV</small>
+        </span>
+    </a>
+</section>
+
+<div class="dashboard-grid">
+    <section class="chart-card">
+        <header>
+            <h3>Đăng ký mới trong 7 ngày</h3>
+        </header>
+        <canvas id="registrationChart" height="120"></canvas>
+    </section>
+
+    <section class="chart-card">
+        <header>
+            <h3>Tỷ lệ trạng thái tài khoản</h3>
+        </header>
+        <canvas id="statusChart" height="120"></canvas>
+    </section>
+</div>
+
+<div class="dashboard-grid mt-3">
+    <section class="panel-card">
+        <header>
+            <h3>User mới gần đây</h3>
+            <a href="{% url 'admin_users' %}">Xem tất cả</a>
+        </header>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Vai trò</th>
+                        <th>Ngày đăng ký</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user_item in recent_users %}
+                    <tr>
+                        <td>{{ user_item.username }}</td>
+                        <td>{{ user_item.email|default:"---" }}</td>
+                        <td>
+                            {% if user_item.is_staff %}
+                            <span class="badge bg-danger">Admin</span>
+                            {% else %}
+                            <span class="badge bg-primary">User</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user_item.date_joined|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-muted text-center">Chưa có dữ liệu</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="panel-card">
+        <header>
+            <h3>Activity Logs gần nhất</h3>
+            <a href="{% url 'admin_activities' %}">Xem nhật ký</a>
+        </header>
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Cây</th>
+                        <th>Hành động</th>
+                        <th>Người thực hiện</th>
+                        <th>Ngày</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in recent_logs %}
+                    <tr>
+                        <td>{{ log.tree.code }}</td>
+                        <td>{{ log.get_action_display }}</td>
+                        <td>{{ log.performer }}</td>
+                        <td>{{ log.date|date:"d/m/Y" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-muted text-center">Chưa có dữ liệu</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const registrationLabels = {{ registration_labels_json|safe }};
+const registrationValues = {{ registration_values_json|safe }};
+const statusValues = {{ user_status_values_json|safe }};
+
+new Chart(document.getElementById('registrationChart'), {
+    type: 'bar',
+    data: {
+        labels: registrationLabels,
+        datasets: [{
+            label: 'Đăng ký mới',
+            data: registrationValues,
+            borderRadius: 8,
+            backgroundColor: 'rgba(26,188,156,0.7)',
+            borderColor: 'rgba(26,188,156,1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+    }
+});
+
+new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Active', 'Banned'],
+        datasets: [{
+            data: statusValues,
+            backgroundColor: ['#22c55e', '#ef4444'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' }
+        }
+    }
+});
+</script>
+{% endblock %}

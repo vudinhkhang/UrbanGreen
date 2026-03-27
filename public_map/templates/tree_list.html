@@ -10,12 +10,14 @@
             <p class="page-subtitle">Tổng cộng: <strong>{{ trees.count }}</strong> cây đang quản lý</p>
         </div>
         <div class="page-actions">
-            <a href="{% url 'species_list' %}" class="btn btn-outline-secondary">
-                <i class="fas fa-leaf"></i> Loài cây
-            </a>
             <a href="{% url 'tree_add' %}" class="btn btn-success">
                 <i class="fas fa-plus-circle"></i> Thêm Cây Mới
             </a>
+            {% if user.is_staff %}
+            <a href="{% url 'species_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-leaf"></i> Loài cây
+            </a>
+            {% endif %}
         </div>
     </div>
 
@@ -77,12 +79,14 @@
                         <a href="{% url 'tree_detail' tree.id %}" class="btn btn-sm btn-info" title="Xem chi tiết">
                             <i class="fas fa-eye"></i>
                         </a>
+                        {% if user.is_staff %}
                         <a href="{% url 'tree_edit' tree.id %}" class="btn btn-sm btn-warning" title="Sửa">
                             <i class="fas fa-edit"></i>
                         </a>
                         <a href="{% url 'tree_delete' tree.id %}" class="btn btn-sm btn-danger" title="Xóa">
                             <i class="fas fa-trash"></i>
                         </a>
+                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}

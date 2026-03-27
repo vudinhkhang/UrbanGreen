@@ -219,9 +219,11 @@
             <h2 class="page-title"><i class="fas fa-map"></i> Bản đồ Cây Xanh GIS</h2>
         </div>
         <div class="page-actions">
+            {% if user.is_staff %}
             <a href="{% url 'tree_add' %}" class="btn btn-success btn-sm">
                 <i class="fas fa-plus-circle"></i> Thêm cây
             </a>
+            {% endif %}
         </div>
     </div>
 
@@ -352,7 +354,7 @@
 
                     <div class="bulk-form-section">
                         <label>Người chăm sóc <span style="color:#ef4444;">*</span></label>
-                        <input type="text" id="bulk-performer" class="form-control form-control-sm" placeholder="Tên người chăm sóc">
+                        <input type="text" id="bulk-performer" class="form-control form-control-sm" placeholder="Tên người chăm sóc" value="{{ user.get_full_name|default:user.username }}">
                     </div>
 
                     <div class="bulk-form-section">
@@ -1011,6 +1013,8 @@
         btn.innerHTML = '<i class="fas fa-check-circle"></i> Hoàn thành (' + count + ' cây)';
     }
 
+    var defaultPerformerName = '{{ user.get_full_name|default:user.username|escapejs }}';
+
     // Update submit button state on form input
     document.getElementById('bulk-performer').addEventListener('input', updateSubmitButton);
     document.getElementById('bulk-action').addEventListener('change', updateSubmitButton);
@@ -1062,7 +1066,7 @@
                 
                 // Clear form and selection
                 clearBulkSelection();
-                document.getElementById('bulk-performer').value = '';
+                document.getElementById('bulk-performer').value = defaultPerformerName;
                 document.getElementById('bulk-action').value = '';
                 document.getElementById('bulk-note').value = '';
                 
@@ -1100,5 +1104,6 @@
             }
         });
     });
+    
 </script>
 {% endblock %}

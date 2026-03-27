@@ -9,6 +9,7 @@ from public_map.views import (
     export_trees_csv, export_maintenance_csv,
     bulk_maintenance_view,
     custom_logout_view,
+    admin_dashboard_view, admin_users_view, user_profile_view, admin_activity_view,
 )
 
 # --- THÊM 2 DÒNG NÀY ---
@@ -16,6 +17,10 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
+    path('admin-panel/', admin_dashboard_view, name='admin_dashboard'),
+    path('admin-users/', admin_users_view, name='admin_users'),
+    path('admin-activities/', admin_activity_view, name='admin_activities'),
+    path('user-profile/', user_profile_view, name='user_profile'),
     path('admin/', admin.site.urls),
     path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),
     path('logout/', custom_logout_view, name='logout'),

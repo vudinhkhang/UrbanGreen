@@ -1,22 +1,78 @@
-{% extends "base.html" %}
+{% extends 'admin_base.html' %}
 
 {% block title %}Báo cáo Thống kê{% endblock %}
+{% block menu_reports %}active{% endblock %}
+{% block admin_page_title %}Phân tích báo cáo{% endblock %}
 
-{% block extra_css %}
+{% block admin_extra_css %}
 <style>
-    .dash-card { background: #fff; border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 20px rgba(0,0,0,.06); border: 1px solid #f3f4f6; height: 100%; }
-    .dash-card h5 { font-size: 1rem; font-weight: 700; color: var(--ug-dark); margin-bottom: 1rem; }
-    .dash-card h5 i { color: var(--ug-teal); margin-right: .4rem; }
-    .chart-wrap { position: relative; width: 100%; }
-    .summary-num { font-size: 2rem; font-weight: 800; color: var(--ug-teal); }
-    .summary-label { font-size: .85rem; color: #6b7280; }
+    .report-shell {
+        display: grid;
+        gap: 14px;
+    }
+    .report-toolbar,
+    .report-card {
+        background: #fff;
+        border: 1px solid #e8eef5;
+        border-radius: 14px;
+        box-shadow: 0 4px 14px rgba(7, 32, 66, 0.05);
+    }
+    .report-toolbar {
+        padding: 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    .report-kpi {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+    }
+    .report-kpi .report-card {
+        padding: 14px;
+        text-align: center;
+    }
+    .summary-num { font-size: 2rem; font-weight: 800; color: #1abc9c; }
+    .summary-label { font-size: .84rem; color: #6b8197; }
+    .report-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+    }
+    .report-card {
+        padding: 14px;
+    }
+    .report-card h5 {
+        margin: 0 0 10px;
+        color: #1e3348;
+        font-size: 1rem;
+    }
+    .report-card h5 i {
+        color: #1abc9c;
+        margin-right: 0.35rem;
+    }
+    .chart-wrap {
+        position: relative;
+        width: 100%;
+        min-height: 250px;
+    }
     .export-group { display: flex; gap: .5rem; flex-wrap: wrap; }
+    @media (max-width: 1024px) {
+        .report-kpi {
+            grid-template-columns: 1fr;
+        }
+        .report-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 {% endblock %}
 
-{% block content %}
-<div class="container py-4">
-    <div class="page-header">
+{% block admin_content %}
+<div class="report-shell">
+    <section class="report-toolbar">
         <div>
             <h2 class="page-title"><i class="fas fa-chart-pie"></i> Báo cáo Thống kê</h2>
             <p class="page-subtitle">Tổng quan dữ liệu cây xanh và hoạt động chăm sóc</p>
@@ -29,76 +85,56 @@
                 <i class="fas fa-file-csv"></i> Xuất lịch chăm sóc
             </a>
         </div>
-    </div>
+    </section>
 
-    <!-- Tổng quan -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-4">
-            <div class="dash-card text-center">
+    <section class="report-kpi">
+        <article class="report-card">
                 <div class="summary-num">{{ total_trees }}</div>
                 <div class="summary-label"><i class="fas fa-tree"></i> Tổng số cây</div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="dash-card text-center">
+        </article>
+        <article class="report-card">
                 <div class="summary-num">{{ total_species }}</div>
                 <div class="summary-label"><i class="fas fa-leaf"></i> Loài cây</div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="dash-card text-center">
+        </article>
+        <article class="report-card">
                 <div class="summary-num">{{ total_logs }}</div>
                 <div class="summary-label"><i class="fas fa-clipboard-list"></i> Lượt chăm sóc</div>
-            </div>
-        </div>
-    </div>
+        </article>
+    </section>
 
-    <!-- Biểu đồ -->
-    <div class="row g-4">
-        <!-- Pie — Loài cây -->
-        <div class="col-lg-6">
-            <div class="dash-card">
+    <section class="report-grid">
+        <article class="report-card">
                 <h5><i class="fas fa-chart-pie"></i> Phân bố theo Loài cây</h5>
                 <div class="chart-wrap">
                     <canvas id="speciesChart"></canvas>
                 </div>
-            </div>
-        </div>
+        </article>
 
-        <!-- Bar — Trạng thái -->
-        <div class="col-lg-6">
-            <div class="dash-card">
+        <article class="report-card">
                 <h5><i class="fas fa-chart-bar"></i> Trạng thái Cây xanh</h5>
                 <div class="chart-wrap">
                     <canvas id="statusChart"></canvas>
                 </div>
-            </div>
-        </div>
+        </article>
 
-        <!-- Line — Chăm sóc theo tháng -->
-        <div class="col-lg-6">
-            <div class="dash-card">
+        <article class="report-card">
                 <h5><i class="fas fa-chart-line"></i> Hoạt động Chăm sóc theo Tháng</h5>
                 <div class="chart-wrap">
                     <canvas id="monthlyChart"></canvas>
                 </div>
-            </div>
-        </div>
+        </article>
 
-        <!-- Bar — Loại công việc -->
-        <div class="col-lg-6">
-            <div class="dash-card">
+        <article class="report-card">
                 <h5><i class="fas fa-chart-bar"></i> Phân bố theo Loại công việc</h5>
                 <div class="chart-wrap">
                     <canvas id="actionChart"></canvas>
                 </div>
-            </div>
-        </div>
-    </div>
+        </article>
+    </section>
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block admin_extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
     var tealPalette = ['#1abc9c','#2ecc71','#3498db','#9b59b6','#e67e22','#e74c3c','#f1c40f','#1abc9c80','#2ecc7180','#3498db80'];

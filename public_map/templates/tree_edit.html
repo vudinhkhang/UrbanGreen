@@ -1,8 +1,10 @@
-{% extends "base.html" %}
+{% extends 'admin_base.html' %}
 
 {% block title %}Sửa Cây {{ tree.code }} - Urban Green GIS{% endblock %}
+{% block menu_trees %}active{% endblock %}
+{% block admin_page_title %}Sửa thông tin cây{% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <div class="container py-4">
     <div class="page-header">
         <div>
