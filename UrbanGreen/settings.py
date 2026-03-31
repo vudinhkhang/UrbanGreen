@@ -100,27 +100,17 @@ WSGI_APPLICATION = "UrbanGreen.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
-USE_POSTGRES = os.getenv('USE_POSTGRES', '0').lower() in ('1', 'true', 'yes', 'on')
-
-if USE_POSTGRES:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.getenv('POSTGRES_DB', 'urbangreen_db'),
-            'USER': os.getenv('POSTGRES_USER', 'urbangreen_user'),
-            'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),
-            'HOST': os.getenv('POSTGRES_HOST', '127.0.0.1'),
-            'PORT': os.getenv('POSTGRES_PORT', '5432'),
-            'CONN_MAX_AGE': int(os.getenv('POSTGRES_CONN_MAX_AGE', '60')),
-        }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('POSTGRES_DB', 'urbangreen_db'),
+        'USER': os.getenv('POSTGRES_USER', 'urbangreen_user'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD', ''),
+        'HOST': os.getenv('POSTGRES_HOST', '127.0.0.1'),
+        'PORT': os.getenv('POSTGRES_PORT', '5432'),
+        'CONN_MAX_AGE': int(os.getenv('POSTGRES_CONN_MAX_AGE', '60')),
     }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
-    }
+}
 
 
 # Password validation
@@ -181,13 +171,3 @@ CSRF_FAILURE_VIEW = 'public_map.views.csrf_failure'
 if DEBUG:
     CSRF_REFERER_NEEDS_HTTPS = False
 
-# ============ MAILTRAP EMAIL CONFIGURATION ============
-# Email backend - Mailtrap SMTP
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'live.smtp.mailtrap.io'
-EMAIL_PORT = 587
-EMAIL_HOST_USER = 'your_mailtrap_username'  # ← Thay bằng username của bạn từ Mailtrap
-EMAIL_HOST_PASSWORD = 'your_mailtrap_password'  # ← Thay bằng password của bạn từ Mailtrap
-EMAIL_USE_TLS = True
-DEFAULT_FROM_EMAIL = 'noreply@urbangreenmanagement.com'
-SERVER_EMAIL = 'noreply@urbangreenmanagement.com'

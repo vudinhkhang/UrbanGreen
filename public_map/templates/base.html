@@ -28,8 +28,16 @@
             --ug-anim-fast: 180ms;
             --ug-anim-base: 320ms;
             --ug-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+            /* Design tokens */
+            --ug-ai-purple: #667eea;
+            --ug-ai-purple-dark: #5a67d8;
+            --text-main: #374151;
+            --text-muted: #4b5563;
+            --footer-muted: #9ca3af;
+            --focus-ring: 0 0 0 3px rgba(26, 188, 156, 0.22);
+            --focus-ring-ai: 0 0 0 3px rgba(102, 126, 234, 0.22);
         }
-        body { font-family: 'Open Sans', sans-serif; color: #4b5563; margin: 0; display: flex; flex-direction: column; min-height: 100vh; }
+        body { font-family: 'Open Sans', sans-serif; color: var(--text-main); margin: 0; display: flex; flex-direction: column; min-height: 100vh; }
 
         /* Bootstrap overrides to match teal palette */
         .btn-primary   { background-color: var(--ug-teal); border-color: var(--ug-teal); }
@@ -158,12 +166,12 @@
         }
 
         /* FOOTER */
-        .ug-footer { background: var(--ug-dark); color: #fff; padding: 3.5rem 0 0; margin-top: 2.5rem; }
-        .ug-footer h5 { color: var(--ug-teal); font-weight: 700; margin-bottom: 1.1rem; font-size: 1.05rem; }
-        .ug-footer a { color: #9ca3af; text-decoration: none; transition: color .2s; }
+        .ug-footer { background: var(--ug-dark); color: #fff; padding: 2.5rem 0 0; margin-top: 2rem; }
+        .ug-footer h5 { color: var(--ug-teal); font-weight: 600; margin-bottom: 0.9rem; font-size: .95rem; }
+        .ug-footer a { color: var(--footer-muted); text-decoration: none; transition: color .2s; font-size: .85rem; }
         .ug-footer a:hover { color: #fff; }
-        .ug-footer-bottom { border-top: 1px solid #374151; margin-top: 2.5rem; padding: 1.4rem 0; text-align: center; color: #6b7280; font-size: .85rem; }
-        .ug-footer .social-icon { display: inline-flex; width: 38px; height: 38px; background: #374151; border-radius: 50%; align-items: center; justify-content: center; color: #fff; text-decoration: none; transition: background .2s; margin-right: .4rem; }
+        .ug-footer-bottom { border-top: 1px solid #374151; margin-top: 2rem; padding: 1rem 0; text-align: center; color: var(--footer-muted); font-size: .8rem; }
+        .ug-footer .social-icon { display: inline-flex; width: 34px; height: 34px; background: #374151; border-radius: 50%; align-items: center; justify-content: center; color: #fff; text-decoration: none; transition: background .2s; margin-right: .3rem; font-size: .8rem; }
         .ug-footer .social-icon:hover { background: var(--ug-teal); color: #fff; }
 
         /* CARDS */
@@ -173,7 +181,7 @@
         .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem; padding-bottom: 1rem; border-bottom: 2px solid #f3f4f6; }
         .page-title { font-size: 1.55rem; font-weight: 700; color: var(--ug-dark); margin: 0; }
         .page-title i { color: var(--ug-teal); margin-right: .4rem; }
-        .page-subtitle { color: #6b7280; font-size: .92rem; margin: .3rem 0 0; }
+        .page-subtitle { color: var(--text-muted); font-size: .92rem; margin: .3rem 0 0; }
         .page-actions { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
     </style>
     {% block extra_css %}{% endblock %}
@@ -212,9 +220,16 @@
             var btn = document.getElementById('ug-menu-toggle');
             var nav = document.getElementById('ug-main-nav');
             if (btn && nav) {
-                btn.addEventListener('click', function() { nav.classList.toggle('show'); });
+                btn.addEventListener('click', function() {
+                    var isExpanded = btn.getAttribute('aria-expanded') === 'true';
+                    btn.setAttribute('aria-expanded', !isExpanded);
+                    nav.classList.toggle('show');
+                });
                 nav.querySelectorAll('a').forEach(function(link) {
-                    link.addEventListener('click', function() { nav.classList.remove('show'); });
+                    link.addEventListener('click', function() {
+                        nav.classList.remove('show');
+                        btn.setAttribute('aria-expanded', 'false');
+                    });
                 });
             }
 

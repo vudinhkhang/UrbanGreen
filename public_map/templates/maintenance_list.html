@@ -5,12 +5,12 @@
 {% block extra_css %}
 <style>
     .care-tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border-radius: 12px; overflow: hidden; background: #f3f4f6; padding: 4px; }
-    .care-tab { flex: 1; text-align: center; padding: .75rem 1rem; cursor: pointer; font-weight: 600; font-size: .95rem; border-radius: 10px; transition: all .25s; color: #6b7280; background: transparent; border: none; }
+    .care-tab { flex: 1; text-align: center; padding: .75rem 1rem; cursor: pointer; font-weight: 600; font-size: .95rem; border-radius: 10px; transition: all .25s; color: var(--text-muted); background: transparent; border: none; }
     .care-tab.active { background: #fff; color: var(--ug-teal); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
     .care-tab:hover:not(.active) { color: var(--ug-dark); }
     .care-tab .tab-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; font-size: .75rem; font-weight: 700; margin-left: 6px; }
     .care-tab.active .tab-badge { background: var(--ug-teal); color: #fff; }
-    .care-tab:not(.active) .tab-badge { background: #e5e7eb; color: #6b7280; }
+    .care-tab:not(.active) .tab-badge { background: #e5e7eb; color: var(--text-muted); }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
@@ -19,7 +19,7 @@
     .ai-stat-card { background: #fff; border-radius: 12px; padding: .9rem 1rem; display: flex; align-items: center; gap: .75rem; box-shadow: 0 1px 4px rgba(0,0,0,.06); border: 1px solid #f3f4f6; }
     .ai-stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
     .ai-stat-number { font-size: 1.3rem; font-weight: 800; line-height: 1; }
-    .ai-stat-label { font-size: .75rem; color: #9ca3af; margin-top: 2px; }
+    .ai-stat-label { font-size: .75rem; color: var(--text-muted); margin-top: 2px; }
 
     /* Grouped Recommendation Cards */
     .rec-list { display: flex; flex-direction: column; gap: .75rem; }
@@ -37,10 +37,10 @@
     }
     .rec-tree-id { display: flex; align-items: center; gap: .5rem; }
     .rec-tree-id .tree-code { font-weight: 700; font-size: .95rem; color: var(--ug-teal); }
-    .rec-tree-id .tree-species { font-size: .85rem; color: #6b7280; }
-    .rec-tree-id .tree-address { font-size: .78rem; color: #9ca3af; }
+    .rec-tree-id .tree-species { font-size: .85rem; color: var(--text-muted); }
+    .rec-tree-id .tree-address { font-size: .78rem; color: var(--text-muted); }
     .rec-head-right { display: flex; align-items: center; gap: .5rem; }
-    .issue-count-badge { font-size: .72rem; font-weight: 600; padding: .2rem .55rem; border-radius: 10px; background: #f3f4f6; color: #6b7280; }
+    .issue-count-badge { font-size: .72rem; font-weight: 600; padding: .2rem .55rem; border-radius: 10px; background: #f3f4f6; color: var(--text-muted); }
 
     .rec-issues { padding: .4rem 1rem .6rem; }
     .rec-issue-row {
@@ -55,7 +55,7 @@
     }
     .rec-issue-body { flex: 1; min-width: 0; }
     .rec-issue-title { font-weight: 600; font-size: .85rem; color: var(--ug-dark); }
-    .rec-issue-detail { font-size: .78rem; color: #9ca3af; line-height: 1.4; }
+    .rec-issue-detail { font-size: .78rem; color: var(--text-muted); line-height: 1.4; }
 
     .rec-card-foot {
         display: flex; align-items: center; gap: .6rem;
@@ -69,15 +69,15 @@
 
     .ai-header { display: flex; align-items: center; gap: .6rem; margin-bottom: 1rem; }
     .ai-sparkle { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size: 1.1rem; }
-    .ai-label { font-size: .85rem; font-weight: 600; color: #6b7280; }
+    .ai-label { font-size: .85rem; font-weight: 600; color: var(--text-muted); }
     .ai-powered { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; font-size: .65rem; padding: .15rem .5rem; border-radius: 4px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; }
 
     .empty-state { text-align: center; padding: 3rem 1rem; }
     .empty-state i { font-size: 3rem; margin-bottom: 1rem; display: block; }
-    .empty-state p { color: #9ca3af; font-size: 1rem; }
+    .empty-state p { color: var(--text-muted); font-size: 1rem; }
 
     .filter-bar { display: flex; gap: .4rem; margin-bottom: 1rem; flex-wrap: wrap; }
-    .filter-type-btn { font-size: .78rem; padding: .28rem .7rem; border-radius: 20px; border: 1px solid #e5e7eb; background: #fff; color: #6b7280; cursor: pointer; transition: all .15s; }
+    .filter-type-btn { font-size: .78rem; padding: .28rem .7rem; border-radius: 20px; border: 1px solid #e5e7eb; background: #fff; color: var(--text-muted); cursor: pointer; transition: all .15s; }
     .filter-type-btn.active, .filter-type-btn:hover { background: var(--ug-teal); color: #fff; border-color: var(--ug-teal); }
 
     @media (max-width: 767px) {
@@ -103,12 +103,10 @@
             <i class="fas fa-history"></i> Lịch sử chăm sóc
             <span class="tab-badge">{{ logs.count }}</span>
         </button>
-        {% if user.is_staff %}
         <button class="care-tab" onclick="switchTab('ai', this)">
             <i class="fas fa-wand-magic-sparkles"></i> Chăm sóc đề xuất
             <span class="tab-badge">{{ ai_stats.total }}</span>
         </button>
-        {% endif %}
     </div>
 
     <!-- ==================== TAB 1: LỊCH SỬ ==================== -->
@@ -195,7 +193,6 @@
     </div>
 
     <!-- ==================== TAB 2: AI ĐỀ XUẤT ==================== -->
-    {% if user.is_staff %}
     <div id="tab-ai" class="tab-content">
         <!-- AI Header -->
         <div class="ai-header">
@@ -217,7 +214,7 @@
             </div>
             <div class="ai-stat-card">
                 <div class="ai-stat-icon" style="background: #f3f4f6;">
-                    <i class="fas fa-list-check" style="color: #6b7280;"></i>
+                    <i class="fas fa-list-check" style="color: var(--text-muted);"></i>
                 </div>
                 <div>
                     <div class="ai-stat-number">{{ ai_stats.total_issues }}</div>
@@ -315,7 +312,6 @@
         </div>
         {% endif %}
     </div>
-    {% endif %}
 </div>
 
 <script>

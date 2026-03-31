@@ -135,28 +135,46 @@
 
             <div class="profile-card mb-4">
                 <div class="profile-card-header">
-                    <h5 class="mb-0">Liên kết nhanh</h5>
-                </div>
-                <div class="profile-card-body d-grid gap-2">
-                    <a href="{% url 'map' %}" class="btn btn-light text-start"><i class="fas fa-map-marked-alt"></i> Bản đồ GIS</a>
-                    <a href="{% url 'tree_list' %}" class="btn btn-light text-start"><i class="fas fa-tree"></i> Danh sách cây</a>
-                    {% if user.is_staff %}
-                    <a href="{% url 'admin_dashboard' %}" class="btn btn-light text-start"><i class="fas fa-chart-line"></i> Dashboard Admin</a>
-                    <a href="{% url 'admin_users' %}" class="btn btn-light text-start"><i class="fas fa-users"></i> Quản lý người dùng</a>
-                    {% endif %}
-                </div>
-            </div>
-
-            <div class="profile-card">
-                <div class="profile-card-header">
-                    <h5 class="mb-0">Khuyến nghị bảo mật</h5>
+                    <h5 class="mb-0">Hoạt động của bạn</h5>
                 </div>
                 <div class="profile-card-body">
-                    <ul class="security-list mb-0">
-                        <li>Không chia sẻ tài khoản với người khác.</li>
-                        <li>Đổi mật khẩu định kỳ mỗi 2-3 tháng.</li>
-                        <li>Ưu tiên mật khẩu dài, khó đoán.</li>
-                    </ul>
+                    <div class="info-row">
+                        <span class="info-label">Tổng hoạt động</span>
+                        <span class="info-value badge bg-primary">{{ user_activity_count|default:"0" }} hành động</span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">Cây đã thêm/sửa</span>
+                        <span class="info-value">
+                            {% if user_trees_count %}
+                            <strong>{{ user_trees_count }}</strong> cây
+                            {% else %}
+                            Chưa có dữ liệu
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="info-row">
+                        <span class="info-label">Lịch chăm sóc ghi nhận</span>
+                        <span class="info-value">
+                            {% if user_logs_count %}
+                            <strong>{{ user_logs_count }}</strong> hành động
+                            {% else %}
+                            Chưa có dữ liệu
+                            {% endif %}
+                        </span>
+                    </div>
+
+                    <div class="info-row border-0">
+                        <span class="info-label">Hoạt động gần đây</span>
+                        <span class="info-value">
+                            {% if user_last_activity %}
+                            {{ user_last_activity|date:"d/m/Y H:i" }}
+                            {% else %}
+                            Không có
+                            {% endif %}
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>

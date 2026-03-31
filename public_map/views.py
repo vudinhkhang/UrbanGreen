@@ -642,23 +642,6 @@ def maintenance_list_view(request):
     action_choices = MaintenanceLog._meta.get_field('action').choices
 
     # ============ AI ĐỀ XUẤT CHĂM SÓC ============
-    if not request.user.is_staff:
-        return render(request, 'maintenance_list.html', {
-            'logs': logs,
-            'query': query,
-            'action_filter': action_filter,
-            'action_choices': action_choices,
-            'recommendations': [],
-            'ai_stats': {
-                'total': 0,
-                'critical': 0,
-                'high': 0,
-                'medium': 0,
-                'total_issues': 0,
-            },
-            'today': date.today(),
-        })
-
     today = date.today()
     recommendations = []
 
@@ -674,7 +657,8 @@ def maintenance_list_view(request):
 
         inspection_freq = species.inspection_frequency_days
         if last_inspection:
-            days_since_inspection = (today - last_inspection).days
+            last_inspection_date = last_inspection.date() if hasattr(last_inspection, 'date') else last_inspection
+            days_since_inspection = (today - last_inspection_date).days
             if days_since_inspection >= inspection_freq:
                 urgency = 'high' if days_since_inspection >= inspection_freq * 2 else 'medium'
                 recommendations.append({
@@ -706,7 +690,8 @@ def maintenance_list_view(request):
 
         watering_freq = species.watering_frequency_days
         if last_watering:
-            days_since_water = (today - last_watering).days
+            last_watering_date = last_watering.date() if hasattr(last_watering, 'date') else last_watering
+            days_since_water = (today - last_watering_date).days
             if days_since_water >= watering_freq:
                 urgency = 'high' if days_since_water >= watering_freq * 3 else 'medium'
                 recommendations.append({
@@ -727,7 +712,8 @@ def maintenance_list_view(request):
             ).order_by('-date').values_list('date', flat=True).first()
 
             if last_spray:
-                days_since_spray = (today - last_spray).days
+                last_spray_date = last_spray.date() if hasattr(last_spray, 'date') else last_spray
+                days_since_spray = (today - last_spray_date).days
                 if days_since_spray >= 60:
                     recommendations.append({
                         'tree': tree,
@@ -756,7 +742,8 @@ def maintenance_list_view(request):
             last_any = MaintenanceLog.objects.filter(
                 tree=tree
             ).order_by('-date').values_list('date', flat=True).first()
-            days_no_care = (today - last_any).days if last_any else 999
+            last_any_date = last_any.date() if (last_any and hasattr(last_any, 'date')) else last_any
+            days_no_care = (today - last_any_date).days if last_any_date else 999
             if days_no_care >= 14:
                 recommendations.append({
                     'tree': tree,
@@ -786,7 +773,8 @@ def maintenance_list_view(request):
             last_check = MaintenanceLog.objects.filter(
                 tree=tree, action='KIEM_TRA'
             ).order_by('-date').values_list('date', flat=True).first()
-            days_since = (today - last_check).days if last_check else 999
+            last_check_date = last_check.date() if (last_check and hasattr(last_check, 'date')) else last_check
+            days_since = (today - last_check_date).days if last_check_date else 999
             if days_since >= 30:
                 recommendations.append({
                     'tree': tree,
@@ -804,7 +792,8 @@ def maintenance_list_view(request):
             last_prune = MaintenanceLog.objects.filter(
                 tree=tree, action='CAT_TIA'
             ).order_by('-date').values_list('date', flat=True).first()
-            days_since = (today - last_prune).days if last_prune else 999
+            last_prune_date = last_prune.date() if (last_prune and hasattr(last_prune, 'date')) else last_prune
+            days_since = (today - last_prune_date).days if last_prune else 999
             if days_since >= 45:
                 recommendations.append({
                     'tree': tree,
@@ -822,7 +811,8 @@ def maintenance_list_view(request):
             last_water = MaintenanceLog.objects.filter(
                 tree=tree, action='TUOI_NUOC'
             ).order_by('-date').values_list('date', flat=True).first()
-            days_since = (today - last_water).days if last_water else 999
+            last_water_date = last_water.date() if (last_water and hasattr(last_water, 'date')) else last_water
+            days_since = (today - last_water_date).days if last_water else 999
             freq = max(species.watering_frequency_days // 2, 3)  # tưới gấp đôi tần suất
             if days_since >= freq:
                 recommendations.append({
@@ -841,7 +831,8 @@ def maintenance_list_view(request):
             last_check = MaintenanceLog.objects.filter(
                 tree=tree, action='KIEM_TRA'
             ).order_by('-date').values_list('date', flat=True).first()
-            days_since = (today - last_check).days if last_check else 999
+            last_check_roots_date = last_check.date() if (last_check and hasattr(last_check, 'date')) else last_check
+            days_since = (today - last_check_roots_date).days if last_check else 999
             if days_since >= 60:
                 recommendations.append({
                     'tree': tree,
@@ -1366,5 +1357,32 @@ def user_profile_view(request):
         'user': user,
         'role': 'Admin' if user.is_staff else 'User',
     }
+
+    # Activity statistics
+    try:
+        # Total activities logged
+        user_activities = ActivityLog.objects.filter(user=user) if user.is_staff else []
+        context['user_activity_count'] = user_activities.count() if user.is_staff else 0
+        
+        # Maintenance logs created/performed by user
+        user_logs = MaintenanceLog.objects.filter(performer__icontains=user.get_full_name() or user.username)
+        context['user_logs_count'] = user_logs.count()
+        
+        # Most recent activity
+        if user.is_staff and user_activities.exists():
+            context['user_last_activity'] = user_activities.order_by('-created_at').first().created_at
+        elif user_logs.exists():
+            context['user_last_activity'] = user_logs.order_by('-date').first().date
+        else:
+            context['user_last_activity'] = None
+        
+        # Trees managed/viewed
+        all_trees = UrbanTree.objects.all()
+        context['user_trees_count'] = all_trees.count()
+    except Exception:
+        context['user_activity_count'] = 0
+        context['user_logs_count'] = 0
+        context['user_last_activity'] = None
+        context['user_trees_count'] = 0
     
     return render(request, 'user_profile.html', context)
