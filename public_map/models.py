@@ -41,6 +41,36 @@ class UrbanTree(models.Model):
     def __str__(self):
         return f"{self.code} - {self.species.name}"
 
+# 2.5 Bảng Hình ảnh Cây (Hỗ trợ nhiều ảnh cho 1 cây)
+class TreeImage(models.Model):
+    tree = models.ForeignKey(UrbanTree, on_delete=models.CASCADE, related_name='images', verbose_name="Cây xanh")
+    image = models.ImageField(upload_to='tree_images/', verbose_name="Hình ảnh")
+    caption = models.CharField(max_length=200, verbose_name="Mô tả ảnh", blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name="Thời gian tải lên")
+    
+    def __str__(self):
+        return f"Ảnh {self.tree.code}"
+    
+    def get_image_url(self):
+        """Get the image URL safely"""
+        if self.image:
+            return self.image.url
+        return None
+    
+    def image_exists(self):
+        """Check if the image file actually exists"""
+        if self.image:
+            try:
+                from django.core.files.storage import default_storage
+                return default_storage.exists(self.image.name)
+            except:
+                return False
+        return False
+    
+    class Meta:
+        ordering = ['-uploaded_at']
+        verbose_name_plural = "Hình ảnh cây"
+
 # 3. Bảng Lịch sử chăm sóc
 class MaintenanceLog(models.Model):
     # Liên kết với cây xanh (Một cây có nhiều lần chăm sóc)
@@ -83,6 +113,7 @@ class ActivityLog(models.Model):
         ('ADD_MAINTENANCE', 'Thêm chăm sóc'),
         ('BULK_MAINTENANCE', 'Chăm sóc hàng loạt'),
         ('UPLOAD_IMAGE', 'Cập nhật ảnh'),
+        ('DELETE_IMAGE', 'Xóa ảnh'),
     ]
 
     user = models.ForeignKey(

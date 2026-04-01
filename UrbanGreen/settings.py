@@ -137,7 +137,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = "UTC"
+TIME_ZONE = "Asia/Ho_Chi_Minh"
 
 USE_I18N = True
 
@@ -148,6 +148,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = "/static/"
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'public_map', 'static'),
@@ -166,6 +168,16 @@ CSRF_COOKIE_SAMESITE = 'Lax'  # Allow same-site cookies
 SESSION_COOKIE_SECURE = False  # Set to True only if using HTTPS in production
 SESSION_COOKIE_SAMESITE = 'Lax'
 CSRF_FAILURE_VIEW = 'public_map.views.csrf_failure'
+
+# Message Framework - Map Django tags to Bootstrap CSS classes
+from django.contrib.messages import constants as messages
+MESSAGE_TAGS = {
+    messages.DEBUG: 'secondary',
+    messages.INFO: 'info',
+    messages.SUCCESS: 'success',
+    messages.WARNING: 'warning',
+    messages.ERROR: 'danger',  # Map ERROR to Bootstrap 'danger'
+}
 
 # For development: disable strict REFERER/ORIGIN checking
 if DEBUG:

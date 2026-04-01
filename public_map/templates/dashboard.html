@@ -115,6 +115,11 @@
                 <div class="chart-wrap">
                     <canvas id="statusChart"></canvas>
                 </div>
+                <div style="margin-top: 12px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; font-size: 0.9rem;">
+                    <span><span style="display: inline-block; width: 16px; height: 16px; background: #e74c3c; border-radius: 3px; margin-right: 6px; vertical-align: middle;"></span> Nguy hiểm</span>
+                    <span><span style="display: inline-block; width: 16px; height: 16px; background: #f39c12; border-radius: 3px; margin-right: 6px; vertical-align: middle;"></span> Sâu bệnh</span>
+                    <span><span style="display: inline-block; width: 16px; height: 16px; background: #2ecc71; border-radius: 3px; margin-right: 6px; vertical-align: middle;"></span> Tốt</span>
+                </div>
         </article>
 
         <article class="report-card">
@@ -167,7 +172,7 @@
             datasets: [{
                 label: 'Số cây',
                 data: {{ status_counts|safe }},
-                backgroundColor: ['#1abc9c', '#f39c12', '#e74c3c'],
+                backgroundColor: ['#e74c3c', '#f39c12', '#2ecc71'],
                 borderRadius: 8,
                 barThickness: 50
             }]

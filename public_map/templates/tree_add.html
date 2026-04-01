@@ -35,6 +35,16 @@
         </div>
     </div>
 
+    <!-- Hiển thị messages nếu có -->
+    {% if messages %}
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endif %}
+
     <div class="row">
         <div class="col-md-8">
             <div class="card">
@@ -89,6 +99,15 @@
                         <!-- Bản đồ chọn tọa độ -->
                         <div class="mb-3">
                             <label class="form-label"><strong><i class="fas fa-map-marker-alt"></i> Chọn vị trí trên bản đồ</strong></label>
+                            
+                            <!-- Thanh tìm kiếm địa chỉ -->
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control" id="address-search" placeholder="Tìm kiếm địa chỉ... (VD: Đường Lê Văn Sỹ, Phường 1)">
+                                <button type="button" class="btn btn-primary" onclick="searchAddress()">
+                                    <i class="fas fa-search"></i> Tìm
+                                </button>
+                            </div>
+                            
                             <div id="pick-map">
                                 <button type="button" class="btn-locate-me" onclick="locateMe()">
                                     <i class="fas fa-crosshairs"></i> Vị trí của tôi
@@ -137,7 +156,7 @@
                         <div class="mb-3" id="images-panel">
                             <label class="form-label">📷 <strong>Hình ảnh cây (tuỳ chọn)</strong></label>
                             <div id="images-list"></div>
-                            <small class="text-muted">Mỗi ảnh tương ứng với 1 cây theo thứ tự. Định dạng: JPG, PNG, GIF</small>
+                            <small class="text-muted"><i class="fas fa-info-circle"></i> Bạn có thể chọn <strong>nhiều ảnh</strong> cho mỗi cây. Định dạng: JPG, PNG, GIF</small>
                         </div>
 
                         <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
@@ -181,6 +200,13 @@
                         <li>Nhập tọa độ thủ công bằng ô <strong>Lat/Lng</strong></li>
                         <li>Kéo marker đỏ trên bản đồ</li>
                         <li>Sửa trực tiếp tọa độ trong danh sách</li>
+                    </ul>
+                    <hr>
+                    <p><strong>Upload Ảnh:</strong></p>
+                    <ul class="small">
+                        <li>Chọn <strong>nhiều ảnh cùng lúc</strong> cho mỗi cây</li>
+                        <li>Ảnh đầu tiên sẽ là ảnh đại diện</li>
+                        <li>Các ảnh còn lại sẽ được lưu trong thư viện cây</li>
                     </ul>
                     <hr>
                     <p class="small text-muted"><i class="fas fa-lightbulb"></i> Click vào marker đỏ để xóa cây mới đó khỏi danh sách.</p>
@@ -379,16 +405,20 @@
         var imgList = document.getElementById('images-list');
         var imgHtml = '';
         if (newTrees.length === 0) {
-            imgHtml = '<input type="file" class="form-control" name="images" accept="image/*">';
+            imgHtml = '<p class="text-muted">Vui lòng chọn ít nhất 1 vị trí cây trước</p>';
         } else {
+            imgHtml = '<p class="text-muted">Chọn ảnh cho từng cây (hoặc bỏ qua):</p>';
             newTrees.forEach(function(t, i) {
                 imgHtml += '<div class="input-group mb-2">'
                     + '<span class="input-group-text" style="font-size:.85rem;min-width:90px;"><i class="fas fa-camera"></i>&nbsp;' + prefix + String(i + 1).padStart(3, '0') + '</span>'
-                    + '<input type="file" class="form-control" name="images" accept="image/*">'
+                    + '<input type="file" class="form-control img-input" name="images_' + i + '" data-tree-index="' + i + '" accept="image/*" multiple>'
                     + '</div>';
             });
         }
         imgList.innerHTML = imgHtml;
+        
+        // Lưu reference tới file inputs
+        window.imageInputs = document.querySelectorAll('.img-input');
     }
 
     // Khi thay đổi prefix → cập nhật danh sách hiển thị
@@ -467,12 +497,105 @@
         }, { enableHighAccuracy: true });
     }
 
-    // Validate form
-    document.getElementById('tree-form').addEventListener('submit', function(e) {
-        if (newTrees.length === 0) {
-            e.preventDefault();
-            alert('Vui lòng click trên bản đồ để chọn ít nhất 1 vị trí cây!');
+    // Tìm kiếm địa chỉ
+    var searchMarker = null;
+    function searchAddress() {
+        var query = document.getElementById('address-search').value.trim();
+        if (!query) {
+            alert('Vui lòng nhập địa chỉ!');
+            return;
         }
+
+        // Thêm "Hồ Chí Minh" nếu người dùng chưa chỉ định thành phố
+        var searchQuery = query;
+        if (!/TP\.|Thành phố|Hà Nội|Hải Phòng|Đà Nẵng|Cần Thơ/i.test(query)) {
+            searchQuery = query + ', Ho Chi Minh, Vietnam';
+        } else {
+            searchQuery = query + ', Vietnam';
+        }
+
+        // Gọi Nominatim API
+        var urlEncoded = encodeURIComponent(searchQuery);
+        fetch('https://nominatim.openstreetmap.org/search?q=' + urlEncoded + '&format=json&limit=1')
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (!data || data.length === 0) {
+                    alert('Không tìm thấy địa chỉ. Vui lòng thử lại với từ khóa khác.');
+                    return;
+                }
+                var result = data[0];
+                var lat = parseFloat(result.lat);
+                var lng = parseFloat(result.lon);
+
+                // Zoom đến vị trí tìm được
+                pickMap.setView([lat, lng], 17);
+
+                // Hiển thị marker cho vị trí tìm được
+                if (searchMarker) pickMap.removeLayer(searchMarker);
+                searchMarker = L.circleMarker([lat, lng], {
+                    radius: 10, fillColor: '#f39c12', color: '#fff',
+                    weight: 3, fillOpacity: 0.8, dashArray: '5, 5'
+                }).addTo(pickMap)
+                 .bindPopup('<b>Tìm kiếm: </b>' + result.display_name)
+                 .openPopup();
+
+                // Cập nhật input tọa độ thủ công
+                document.getElementById('manual-lat').value = lat.toFixed(6);
+                document.getElementById('manual-lng').value = lng.toFixed(6);
+            })
+            .catch(function(err) {
+                alert('Lỗi tìm kiếm địa chỉ: ' + err.message);
+            });
+    }
+
+    // Enter key trên input search
+    document.getElementById('address-search').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            searchAddress();
+        }
+    });
+
+    // Xử lý form submit - gửi file đúng cách
+    document.getElementById('tree-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (newTrees.length === 0) {
+            alert('Vui lòng click trên bản đồ để chọn ít nhất 1 vị trí cây!');
+            return;
+        }
+        
+        // Disable nút submit để tránh double submit
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+        
+        // Tạo FormData từ form - sẽ include tất cả input và file
+        const formData = new FormData(this);
+        
+        // Debug: Log tất cả form data
+        console.log('FormData keys:', [...formData.keys()]);
+        for (let [key, value] of formData.entries()) {
+            if (value instanceof File) {
+                console.log(`  ${key}: ${value.name} (${value.size} bytes)`);
+            }
+        }
+        
+        // Submit bằng fetch
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            redirect: 'follow'
+        })
+        .then(response => {
+            // Reload page sau submit
+            setTimeout(() => location.reload(), 1000);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> Thêm Cây';
+            alert('❌ Lỗi: ' + error.message);
+        });
     });
 </script>
 {% endblock %}

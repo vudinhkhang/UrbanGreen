@@ -46,6 +46,10 @@ def log_activity(request, action_type, entity_type, entity_code='', detail=''):
         detail=detail or '',
     )
 
+def about_view(request):
+    """Public introduction/about page - accessible without login."""
+    return render(request, 'about.html')
+
 @login_required
 @ensure_csrf_cookie
 def home_view(request):
@@ -92,6 +96,12 @@ def map_view(request):
     tree_list = []
     for tree in trees:
         image_url = tree.image.url if tree.image else ''
+        
+        # Lấy tất cả ảnh của cây
+        tree_images = []
+        for img in tree.images.all():
+            tree_images.append(img.image.url)
+        
         tree_list.append({
             'id': tree.id,
             'code': tree.code,
@@ -101,6 +111,7 @@ def map_view(request):
             'long': tree.longitude,
             'height': tree.height,
             'image': image_url,
+            'images': tree_images,
             'address': tree.address or ''
         })
     
@@ -134,18 +145,95 @@ def tree_detail_view(request, tree_id):
     
     # ============ XỬ LÝ FORM POST ============
     if request.method == 'POST':
-        # 1. Cập nhật ảnh cây nếu có upload
-        if 'image' in request.FILES:
-            tree.image = request.FILES['image']
-            tree.save()
+        # -1. Xóa ảnh từ thư viện nếu có yêu cầu
+        if 'delete_image_id' in request.POST:
+            image_id = request.POST.get('delete_image_id')
+            try:
+                from .models import TreeImage
+                img_to_delete = TreeImage.objects.get(id=image_id, tree=tree)
+                
+                # Nếu đây là ảnh đại diện, hãy cập nhật sang ảnh khác
+                if tree.image.name == img_to_delete.image.name:
+                    other_images = tree.images.exclude(id=image_id).first()
+                    if other_images:
+                        tree.image = other_images.image
+                    else:
+                        tree.image = None
+                    tree.save()
+                
+                # Xóa file từ storage
+                if img_to_delete.image:
+                    from django.core.files.storage import default_storage
+                    if default_storage.exists(img_to_delete.image.name):
+                        default_storage.delete(img_to_delete.image.name)
+                
+                img_to_delete.delete()
+                log_activity(
+                    request,
+                    action_type='DELETE_IMAGE',
+                    entity_type='TREE',
+                    entity_code=tree.code,
+                    detail=f'Xóa 1 ảnh khỏi cây {tree.code}',
+                )
+                messages.success(request, '✅ Xóa ảnh thành công!')
+                return redirect('tree_detail', tree_id=tree_id)
+            except TreeImage.DoesNotExist:
+                messages.error(request, '❌ Ảnh không tồn tại!')
+            except Exception as e:
+                messages.error(request, f'❌ Lỗi khi xóa ảnh: {str(e)}')
+        
+        # 0. Xử lý chỉnh sửa thông tin cây (nếu có submit từ tab Sửa thông tin)
+        if 'edit_tree' in request.POST:
+            try:
+                old_code = tree.code
+                tree.species_id = request.POST.get('species', tree.species_id)
+                tree.code = request.POST.get('code', tree.code).strip()
+                tree.height = float(request.POST.get('height', tree.height))
+                tree.status = request.POST.get('status', tree.status)
+                tree.latitude = float(request.POST.get('latitude', tree.latitude))
+                tree.longitude = float(request.POST.get('longitude', tree.longitude))
+                tree.address = request.POST.get('address', tree.address)
+                
+                tree.save()
+                log_activity(
+                    request,
+                    action_type='EDIT_TREE',
+                    entity_type='TREE',
+                    entity_code=tree.code,
+                    detail=f'Cập nhật cây {old_code} -> {tree.code}',
+                )
+                messages.success(request, f'✅ Cập nhật cây {tree.code} thành công!')
+                return redirect('tree_detail', tree_id=tree_id)
+            
+            except ValueError:
+                messages.error(request, '❌ Vui lòng nhập dữ liệu đúng định dạng!')
+            except Exception as e:
+                messages.error(request, f'❌ Lỗi: {str(e)}')
+        
+        # 1. Cập nhật/Thêm ảnh cây nếu có upload (hỗ trợ nhiều ảnh)
+        elif 'image' in request.FILES:
+            uploaded_files = request.FILES.getlist('image')
+            for uploaded_file in uploaded_files:
+                from .models import TreeImage
+                TreeImage.objects.create(
+                    tree=tree,
+                    image=uploaded_file,
+                    caption=''
+                )
+            
+            # Cũng cập nhật trường image cũ để tương thích
+            if uploaded_files:
+                tree.image = uploaded_files[0]
+                tree.save()
+            
             log_activity(
                 request,
                 action_type='UPLOAD_IMAGE',
                 entity_type='TREE',
                 entity_code=tree.code,
-                detail=f'Cập nhật ảnh cây {tree.code}',
+                detail=f'Cập nhật {len(uploaded_files)} ảnh cho cây {tree.code}',
             )
-            messages.success(request, '✅ Cập nhật ảnh thành công!')
+            messages.success(request, f'✅ Tải lên {len(uploaded_files)} ảnh thành công!')
         
         # 2. Thêm lịch sử chăm sóc nếu có submit form
         if 'add_maintenance' in request.POST:
@@ -187,7 +275,9 @@ def tree_detail_view(request, tree_id):
         'logs': logs,
         'status_choices': status_choices,
         'maintenance_choices': maintenance_choices,
-        'today': today
+        'today': today,
+        'tree_images': tree.images.all().order_by('-uploaded_at'),  # Lấy tất cả ảnh, sắp xếp mới nhất trước
+        'species_list': TreeSpecies.objects.all(),
     })
 
 # ============ DANH SÁCH CÂY ============
@@ -196,7 +286,7 @@ def tree_list_view(request):
     query = request.GET.get('q', '')
     status_filter = request.GET.get('status', '')
     
-    trees = UrbanTree.objects.all()
+    trees = UrbanTree.objects.all().select_related('species')
     
     if query:
         trees = trees.filter(
@@ -207,13 +297,20 @@ def tree_list_view(request):
     if status_filter:
         trees = trees.filter(status=status_filter)
     
+    # Phân trang: 15 cây mỗi trang
+    paginator = Paginator(trees, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
     status_choices = UrbanTree._meta.get_field('status').choices
     
     return render(request, 'tree_list.html', {
-        'trees': trees,
+        'page_obj': page_obj,
+        'trees': page_obj.object_list,
         'query': query,
         'status_filter': status_filter,
-        'status_choices': status_choices
+        'status_choices': status_choices,
+        'paginator': paginator,
     })
 
 # ============ THÊM CÂY MỚI ============
@@ -247,44 +344,85 @@ def tree_add_view(request):
 
             created_codes = []
             last_tree = None
-            images = request.FILES.getlist('images')
+            errors = []
+            
             for i, loc in enumerate(locations):
-                num = max_num + i + 1
-                code = f"{code_prefix}{num:03d}"
-                tree_status = statuses[i] if i < len(statuses) else 'TOT'
-                if i < len(heights) and heights[i]:
-                    tree_height = float(heights[i])
-                elif height:
-                    tree_height = float(height)
-                else:
-                    tree_height = 0.0
-                tree = UrbanTree(
-                    species=species,
-                    code=code,
-                    height=tree_height,
-                    status=tree_status,
-                    latitude=float(loc['lat']),
-                    longitude=float(loc['lng']),
-                    address=address
-                )
-                if i < len(images):
-                    tree.image = images[i]
-                tree.save()
-                log_activity(
-                    request,
-                    action_type='ADD_TREE',
-                    entity_type='TREE',
-                    entity_code=code,
-                    detail=f'Thêm cây mới {code} ({species.name})',
-                )
-                created_codes.append(code)
-                last_tree = tree
-
-            if len(created_codes) == 1:
+                try:
+                    num = max_num + i + 1
+                    code = f"{code_prefix}{num:03d}"
+                    tree_status = statuses[i] if i < len(statuses) else 'TOT'
+                    if i < len(heights) and heights[i]:
+                        tree_height = float(heights[i])
+                    elif height:
+                        tree_height = float(height)
+                    else:
+                        tree_height = 0.0
+                    tree = UrbanTree(
+                        species=species,
+                        code=code,
+                        height=tree_height,
+                        status=tree_status,
+                        latitude=float(loc['lat']),
+                        longitude=float(loc['lng']),
+                        address=address
+                    )
+                    
+                    # Lấy tất cả ảnh cho cây này từ input images_i
+                    tree_images = request.FILES.getlist(f'images_{i}')
+                    
+                    if tree_images:
+                        tree.image = tree_images[0]
+                    
+                    tree.save()
+                    
+                    # Lưu tất cả ảnh cho cây này vào TreeImage
+                    if tree_images:
+                        from .models import TreeImage
+                        for uploaded_file in tree_images:
+                            print(f"DEBUG: Saving image {uploaded_file.name} (size: {uploaded_file.size}) for tree {code}")
+                            try:
+                                TreeImage.objects.create(
+                                    tree=tree,
+                                    image=uploaded_file,
+                                    caption=''
+                                )
+                                print(f"  ✓ Image saved successfully")
+                            except Exception as e:
+                                print(f"  ✗ Error saving image: {str(e)}")
+                    
+                    log_activity(
+                        request,
+                        action_type='ADD_TREE',
+                        entity_type='TREE',
+                        entity_code=code,
+                        detail=f'Thêm cây mới {code} ({species.name})',
+                    )
+                    created_codes.append(code)
+                    last_tree = tree
+                    print(f"✓ Tree {code} created successfully with {len(tree_images)} images")
+                
+                except Exception as tree_error:
+                    error_msg = f"Lỗi tạo cây #{i+1}: {str(tree_error)}"
+                    print(f"✗ {error_msg}")
+                    errors.append(error_msg)
+                    continue
+            
+            # Xử lý kết quả
+            if errors:
+                for err in errors:
+                    messages.warning(request, f"⚠️ {err}")
+            
+            if len(created_codes) == 0:
+                messages.error(request, f'❌ Không thêm được cây nào. Vui lòng kiểm tra thông tin!')
+                return redirect('tree_add')
+            elif len(created_codes) == 1:
                 messages.success(request, f'✅ Thêm cây {created_codes[0]} thành công!')
                 return redirect('tree_detail', tree_id=last_tree.id)
             else:
-                messages.success(request, f'✅ Thêm {len(created_codes)} cây thành công: {created_codes[0]} → {created_codes[-1]}')
+                msg = f'✅ Thêm {len(created_codes)} cây thành công: {created_codes[0]} → {created_codes[-1]}'
+                if errors:
+                    msg += f' (có {len(errors)} lỗi)'
+                messages.success(request, msg)
                 return redirect('tree_list')
 
         except ValueError:
@@ -316,54 +454,8 @@ def tree_add_view(request):
         'existing_json': existing_json,
     })
 
-# ============ SỬA CÂY ============
-@login_required
-@admin_required
-def tree_edit_view(request, tree_id):
-    tree = get_object_or_404(UrbanTree, id=tree_id)
-    old_code = tree.code
-    
-    if request.method == 'POST':
-        try:
-            tree.species_id = request.POST.get('species', tree.species_id)
-            tree.code = request.POST.get('code', tree.code).strip()
-            tree.height = float(request.POST.get('height', tree.height))
-            tree.status = request.POST.get('status', tree.status)
-            tree.latitude = float(request.POST.get('latitude', tree.latitude))
-            tree.longitude = float(request.POST.get('longitude', tree.longitude))
-            tree.address = request.POST.get('address', tree.address)
-            
-            if 'image' in request.FILES:
-                tree.image = request.FILES['image']
-            
-            tree.save()
-            log_activity(
-                request,
-                action_type='EDIT_TREE',
-                entity_type='TREE',
-                entity_code=tree.code,
-                detail=f'Cập nhật cây {old_code} -> {tree.code}',
-            )
-            messages.success(request, f'✅ Cập nhật cây {tree.code} thành công!')
-            return redirect('tree_detail', tree_id=tree.id)
-        
-        except ValueError:
-            messages.error(request, '❌ Vui lòng nhập dữ liệu đúng định dạng!')
-        except Exception as e:
-            messages.error(request, f'❌ Lỗi: {str(e)}')
-    
-    species_list = TreeSpecies.objects.all()
-    status_choices = UrbanTree._meta.get_field('status').choices
-    
-    return render(request, 'tree_edit.html', {
-        'tree': tree,
-        'species_list': species_list,
-        'status_choices': status_choices
-    })
-
 # ============ XÓA CÂY ============
 @login_required
-@admin_required
 def tree_delete_view(request, tree_id):
     tree = get_object_or_404(UrbanTree, id=tree_id)
     
@@ -886,12 +978,24 @@ def maintenance_list_view(request):
         'total_issues': len(recommendations),
     }
 
+    # Phân trang: lịch chăm sóc (10 items mỗi trang)
+    paginator_logs = Paginator(logs, 10)
+    page_logs = request.GET.get('page_logs', 1)
+    page_obj_logs = paginator_logs.get_page(page_logs)
+
+    # Phân trang: đề xuất chăm sóc (8 items mỗi trang)
+    paginator_recs = Paginator(grouped_recommendations, 8)
+    page_recs = request.GET.get('page_recs', 1)
+    page_obj_recs = paginator_recs.get_page(page_recs)
+
     return render(request, 'maintenance_list.html', {
-        'logs': logs,
+        'page_obj_logs': page_obj_logs,
+        'logs': page_obj_logs.object_list,
         'query': query,
         'action_filter': action_filter,
         'action_choices': action_choices,
-        'recommendations': grouped_recommendations,
+        'page_obj_recs': page_obj_recs,
+        'recommendations': page_obj_recs.object_list,
         'ai_stats': stats,
         'today': today,
     })
@@ -1262,32 +1366,49 @@ def admin_users_view(request):
 @login_required
 @admin_required
 def admin_activity_view(request):
-    q = request.GET.get('q', '').strip()
-    action_filter = request.GET.get('action', '').strip()
-
-    logs_qs = ActivityLog.objects.select_related('user').order_by('-created_at')
-
+    q = request.GET.get('q', '')
+    action_type = request.GET.get('action_type', '')
+    entity_type = request.GET.get('entity_type', '')
+    
+    activities = ActivityLog.objects.select_related('user').order_by('-created_at')
+    
     if q:
-        logs_qs = logs_qs.filter(
+        activities = activities.filter(
+            Q(entity_code__icontains=q) |
+            Q(detail__icontains=q) |
             Q(user__username__icontains=q)
-            | Q(entity_code__icontains=q)
-            | Q(detail__icontains=q)
         )
-
-    if action_filter:
-        logs_qs = logs_qs.filter(action_type=action_filter)
-
-    paginator = Paginator(logs_qs, 20)
+    if action_type:
+        activities = activities.filter(action_type=action_type)
+    if entity_type:
+        activities = activities.filter(entity_type=entity_type)
+    
+    paginator = Paginator(activities, 20)
     page_obj = paginator.get_page(request.GET.get('page'))
-
+    
     context = {
         'page_obj': page_obj,
-        'logs': page_obj,
+        'logs': page_obj.object_list,
         'q': q,
-        'selected_action': action_filter,
+        'action_type': action_type,
+        'entity_type': entity_type,
+        'selected_action': action_type,
         'action_choices': ActivityLog.ACTION_CHOICES,
+        'total_activities': ActivityLog.objects.count(),
     }
+    
     return render(request, 'admin_activity.html', context)
+
+
+# ============ ERROR HANDLERS ============
+def custom_404_view(request, exception=None):
+    """Custom 404 error page handler."""
+    return render(request, '404.html', status=404)
+
+
+def custom_500_view(request):
+    """Custom 500 error page handler."""
+    return render(request, '500.html', status=500)
 
 
 # ============ USER PROFILE PAGE ============

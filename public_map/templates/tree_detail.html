@@ -16,11 +16,6 @@
             <a href="{% url 'tree_list' %}" class="btn btn-outline-secondary">
                 <i class="fas fa-list"></i> Danh sách
             </a>
-            {% if user.is_staff %}
-            <a href="{% url 'tree_edit' tree.id %}" class="btn btn-warning">
-                <i class="fas fa-edit"></i> Sửa
-            </a>
-            {% endif %}
         </div>
     </div>
         
@@ -38,13 +33,68 @@
             <!-- Cột bên trái: Thông tin cây & Upload ảnh -->
             <div class="col-md-5">
                 <div class="card">
-                    {% if tree.image %}
-                    <img src="{{ tree.image.url }}" class="card-img-top" alt="...">
-                    {% else %}
-                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 250px;">
-                        <span class="text-muted">Chưa có ảnh</span>
+                    <!-- Image Gallery with Navigation -->
+                    <div class="position-relative" id="gallery-container">
+                        {% if tree_images %}
+                        <div style="position: relative; overflow: hidden; border-radius: 4px 4px 0 0;">
+                            {% for img in tree_images %}
+                            <img src="{{ img.image.url }}" 
+                                 class="card-img-top gallery-img" 
+                                 alt="Ảnh {{ forloop.counter }}" 
+                                 style="display: {% if forloop.first %}block{% else %}none{% endif %}; cursor: pointer; width: 100%; height: 300px; object-fit: cover;" 
+                                 data-index="{{ forloop.counter0 }}" 
+                                 onclick="cycleGalleryImage(event)"
+                                 onerror="this.style.display='none'; showGalleryBrokenImageMessage(this);">
+                            {% endfor %}
+                            
+                            <!-- Gallery Navigation -->
+                            {% if tree_images|length > 1 %}
+                            <button type="button" class="btn btn-light" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); z-index: 10;" 
+                                    onclick="prevGalleryImage()">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <button type="button" class="btn btn-light" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); z-index: 10;" 
+                                    onclick="nextGalleryImage()">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                            
+                            <!-- Image Counter -->
+                            <div style="position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.6); color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.85rem; z-index: 10;">
+                                <span id="current-image">1</span> / <span id="total-images">{{ tree_images|length }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 300px;">
+                            <span class="text-muted">Chưa có ảnh</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Thumbnail Gallery with Delete -->
+                    {% if tree_images|length > 1 %}
+                    <div style="padding: 10px; background: #f8f9fa; border-bottom: 1px solid #dee2e6; overflow-x: auto; display: flex; gap: 8px;">
+                        {% for img in tree_images %}
+                        <div style="position: relative; width: 60px; height: 60px; display: inline-block;">
+                            <img src="{{ img.image.url }}" 
+                                 style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; cursor: pointer; border: 2px solid {% if forloop.first %}#1abc9c{% else %}transparent{% endif %}; transition: all 0.2s;" 
+                                 data-thumbnail-index="{{ forloop.counter0 }}"
+                                 onclick="goToGalleryImage({{ forloop.counter0 }})"
+                                 alt="Thumbnail {{ forloop.counter }}"
+                                 class="gallery-thumbnail"
+                                 onerror="this.style.opacity='0.5'; this.style.border='2px solid #dc3545';"
+                                 title="Ảnh {{ forloop.counter }}">
+                            <button type="button" class="btn btn-sm btn-danger" 
+                                    style="position: absolute; top: -8px; right: -8px; width: 24px; height: 24px; padding: 2px; line-height: 1; border-radius: 50%;"
+                                    title="Xóa ảnh này"
+                                    onclick="deleteTreeImage({{ img.id }}, event)">
+                                <i class="fas fa-times" style="font-size: 12px;"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
                     </div>
                     {% endif %}
+
                     <div class="card-body">
                         <h3 class="card-title">{{ tree.species.name }}</h3>
                         <p class="text-muted">Mã số: {{ tree.code }}</p>
@@ -70,10 +120,77 @@
                     </div>
                 </div>
 
+                <!-- Form Chỉnh sửa thông tin cây -->
+                <div class="card mt-3">
+                    <div class="card-header bg-warning">
+                        <h5 class="mb-0">🔧 Chỉnh sửa Thông tin Cây</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <input type="hidden" name="edit_tree" value="1">
+
+                            <!-- Row 1 -->
+                            <!-- <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="species" class="form-label"><strong>Loài Cây <span class="text-danger">*</span></strong></label>
+                                    <select class="form-select" id="species" name="species" required>
+                                        {% for species in species_list %}
+                                        <option value="{{ species.id }}" {% if species.id == tree.species.id %}selected{% endif %}>{{ species.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="code" class="form-label"><strong>Mã Cây <span class="text-danger">*</span></strong></label>
+                                    <input type="text" class="form-control" id="code" name="code" value="{{ tree.code }}" required>
+                                </div>
+                            </div> -->
+
+                            <!-- Row 2 -->
+                            <!-- <div class="row"> -->
+                                <div class="col-md-4 mb-3">
+                                    <label for="height" class="form-label"><strong>Chiều cao (m) <span class="text-danger">*</span></strong></label>
+                                    <input type="number" class="form-control" id="height" name="height" step="0.1" value="{{ tree.height }}" required>
+                                </div>
+                                <!-- <div class="col-md-4 mb-3">
+                                    <label for="status" class="form-label"><strong>Trạng thái <span class="text-danger">*</span></strong></label>
+                                    <select class="form-select" id="status" name="status" required>
+                                        {% for code, label in status_choices %}
+                                        <option value="{{ code }}" {% if code == tree.status %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="address" class="form-label">Địa chỉ</label>
+                                    <input type="text" class="form-control" id="address" name="address" value="{{ tree.address }}">
+                                </div>
+                            </div> -->
+
+                            <!-- Row 3: Tọa độ GIS -->
+                            <!-- <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="latitude" class="form-label"><strong>Vĩ độ (Y) <span class="text-danger">*</span></strong></label>
+                                    <input type="number" class="form-control" id="latitude" name="latitude" step="0.000001" value="{{ tree.latitude }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="longitude" class="form-label"><strong>Kinh độ (X) <span class="text-danger">*</span></strong></label>
+                                    <input type="number" class="form-control" id="longitude" name="longitude" step="0.000001" value="{{ tree.longitude }}" required>
+                                </div>
+                            </div> -->
+
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                                <button type="submit" class="btn btn-warning btn-lg">
+                                    <i class="fas fa-check"></i> Cập nhật
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
                 <!-- Form Upload Ảnh -->
                 <div class="card mt-3">
                     <div class="card-header bg-warning">
-                        <h5 class="mb-0">📷 Cập nhật Ảnh</h5>
+                        <h5 class="mb-0">📷 Cập nhật Ảnh (Có thể chọn nhiều)</h5>
                     </div>
                     <div class="card-body">
                         <!-- Tabs để chuyển đổi giữa Tải lên và Chụp ảnh -->
@@ -93,9 +210,9 @@
                                 <form method="post" enctype="multipart/form-data">
                                     {% csrf_token %}
                                     <div class="mb-3">
-                                        <label for="image" class="form-label">Chọn ảnh từ máy:</label>
-                                        <input type="file" class="form-control" id="image" name="image" accept="image/*">
-                                        <small class="text-muted">Định dạng: JPG, PNG, GIF</small>
+                                        <label for="image" class="form-label">Chọn ảnh từ máy (có thể chọn nhiều):</label>
+                                        <input type="file" class="form-control" id="image" name="image" accept="image/*" multiple>
+                                        <!-- <small class="text-muted"><i class="fas fa-info-circle"></i> Ảnh mới sẽ được <strong>THÊM</strong> vào (không xóa ảnh cũ). Để xóa ảnh, click nút ❌ trên thumbnail</small> -->
                                     </div>
                                     <button type="submit" class="btn btn-warning w-100">💾 Cập nhật Ảnh</button>
                                 </form>
@@ -332,6 +449,130 @@
             }).catch(error => {
                 console.error('Upload Error:', error);
                 alert('❌ Lỗi khi tải ảnh lên');
+            });
+        });
+
+        // ==================== XỬ LÝ CHỨC NĂNG GALLERY ẢNH ====================
+        let currentGalleryIndex = 0;
+        let galleryImages = [];
+        let totalImages = 0;
+
+        function initializeGallery() {
+            galleryImages = document.querySelectorAll('.gallery-img');
+            totalImages = galleryImages.length;
+            
+            if (totalImages > 0) {
+                // Filter out images that have failed to load
+                const visibleImages = Array.from(galleryImages).filter(img => 
+                    img.offsetHeight > 0 && img.style.display !== 'none'
+                );
+                
+                if (visibleImages.length === 0) {
+                    // If first image failed to load, try to find a visible one
+                    for (let i = 0; i < galleryImages.length; i++) {
+                        if (galleryImages[i].complete && galleryImages[i].naturalHeight === 0) {
+                            // Image failed to load, hide it
+                            galleryImages[i].style.display = 'none';
+                        } else {
+                            currentGalleryIndex = i;
+                            break;
+                        }
+                    }
+                }
+                
+                showGalleryImage(currentGalleryIndex);
+            }
+        }
+
+        function showGalleryImage(index) {
+            if (totalImages === 0) return;
+            
+            // Wrap around
+            if (index >= totalImages) currentGalleryIndex = 0;
+            if (index < 0) currentGalleryIndex = totalImages - 1;
+            
+            // Hide all images, show current one
+            for (let i = 0; i < totalImages; i++) {
+                if (i === currentGalleryIndex) {
+                    galleryImages[i].style.display = 'block';
+                } else {
+                    galleryImages[i].style.display = 'none';
+                }
+            }
+            
+            // Update counter
+            const counterElem = document.getElementById('current-image');
+            if (counterElem) {
+                counterElem.textContent = currentGalleryIndex + 1;
+            }
+            
+            // Update thumbnail border
+            document.querySelectorAll('.gallery-thumbnail').forEach((thumb, idx) => {
+                thumb.style.borderColor = idx === currentGalleryIndex ? '#1abc9c' : 'transparent';
+            });
+        }
+
+        function nextGalleryImage() {
+            currentGalleryIndex++;
+            if (currentGalleryIndex >= totalImages) currentGalleryIndex = 0;
+            showGalleryImage(currentGalleryIndex);
+        }
+
+        function prevGalleryImage() {
+            currentGalleryIndex--;
+            if (currentGalleryIndex < 0) currentGalleryIndex = totalImages - 1;
+            showGalleryImage(currentGalleryIndex);
+        }
+
+        function cycleGalleryImage(event) {
+            // Click on image to cycle to next
+            nextGalleryImage();
+        }
+
+        function goToGalleryImage(index) {
+            currentGalleryIndex = index;
+            showGalleryImage(currentGalleryIndex);
+        }
+
+        function showGalleryBrokenImageMessage(img) {
+            console.warn('Ảnh bị lỗi:', img.src);
+        }
+        // Xóa ảnh từ thư viện
+        function deleteTreeImage(imageId, event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            if (!confirm('Bạn có chắc muốn xóa ảnh này?')) return;
+            
+            const formData = new FormData();
+            formData.append('delete_image_id', imageId);
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                }
+            })
+            .then(response => response.text())
+            .then(() => {
+                // Reload page sau khi xóa thành công
+                location.reload();
+            })
+            .catch(err => {
+                alert('❌ Lỗi khi xóa ảnh: ' + err);
+            });
+        }
+        // Initialize gallery after DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Wait a bit for images to start loading
+            setTimeout(initializeGallery, 100);
+            
+            // Also re-initialize when images load
+            galleryImages = document.querySelectorAll('.gallery-img');
+            galleryImages.forEach(img => {
+                img.addEventListener('load', initializeGallery);
+                img.addEventListener('error', initializeGallery);
             });
         });
     </script>

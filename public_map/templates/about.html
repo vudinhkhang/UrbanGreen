@@ -1,0 +1,602 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Giới thiệu - Urban Green | Quản lý Cây Xanh Thông Minh{% endblock %}
+
+{% block meta_description %}Urban Green là nền tảng quản lý cây xanh đô thị với công nghệ GIS và AI. Quản lý cây xanh hiệu quả, chăm sóc thông minh, báo cáo toàn diện.{% endblock %}
+
+{% block og_title %}Giới thiệu Urban Green - Quản lý Cây Xanh Thông Minh{% endblock %}
+
+{% block og_description %}Khám phá giải pháp quản lý cây xanh đô thị toàn diện với bản đồ GIS, đề xuất AI và báo cáo vận hành thông minh.{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* About Page Specific Styles */
+    .about-hero {
+        padding: 4rem 0 3rem;
+        background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%);
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .about-hero::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 600px;
+        height: 600px;
+        background: radial-gradient(circle, rgba(26,188,156,.08) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .about-hero h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--ug-dark);
+        margin-bottom: 1rem;
+        line-height: 1.25;
+        position: relative;
+        z-index: 2;
+    }
+
+    .about-hero .highlight {
+        color: var(--ug-teal);
+    }
+
+    .about-hero p {
+        font-size: 1.1rem;
+        color: var(--text-muted);
+        max-width: 600px;
+        margin-bottom: 2rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    /* Mission Section */
+    .mission-section {
+        padding: 3rem 0;
+        background: #fff;
+    }
+
+    .mission-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 3rem;
+        align-items: center;
+        margin-bottom: 3rem;
+    }
+
+    .mission-text h2 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--ug-dark);
+        margin-bottom: 1rem;
+    }
+
+    .mission-text p {
+        font-size: 0.95rem;
+        color: var(--text-muted);
+        margin-bottom: 1.2rem;
+        line-height: 1.6;
+    }
+
+    .mission-icon {
+        width: 60px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8rem;
+        background: #e6f9f1;
+        border-radius: 12px;
+        margin-bottom: 0.5rem;
+    }
+
+    /* Features Section */
+    .features-section {
+        padding: 3.5rem 0;
+        background: #f8fafc;
+    }
+
+    .section-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: var(--ug-dark);
+        margin-bottom: 0.5rem;
+    }
+
+    .section-header p {
+        font-size: 1rem;
+        color: var(--text-muted);
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 2rem;
+    }
+
+    .feature-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1.8rem;
+        border: 1px solid #e8eef5;
+        transition: all 0.3s;
+        box-shadow: 0 2px 8px rgba(0,0,0,.03);
+    }
+
+    .feature-card:hover {
+        border-color: var(--ug-teal);
+        box-shadow: 0 8px 20px rgba(26,188,156,.12);
+        transform: translateY(-3px);
+    }
+
+    .feature-card .icon {
+        width: 50px;
+        height: 50px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        background: #e6f9f1;
+        border-radius: 10px;
+        margin-bottom: 1rem;
+    }
+
+    .feature-card h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--ug-dark);
+        margin-bottom: 0.5rem;
+    }
+
+    .feature-card p {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    /* Benefits Section */
+    .benefits-section {
+        padding: 3.5rem 0;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        color: #fff;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .benefits-section::before {
+        content: '';
+        position: absolute;
+        top: -30%;
+        right: -10%;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(26,188,156,.12) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .benefits-section h2 {
+        font-size: 1.8rem;
+        font-weight: 800;
+        margin-bottom: 2rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    .benefits-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 2rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    .benefit-item {
+        padding: 1.5rem;
+        background: rgba(255,255,255,.05);
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,.1);
+    }
+
+    .benefit-item .num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, var(--ug-teal), #2ecc71);
+        border-radius: 50%;
+        font-weight: 700;
+        margin-bottom: 0.8rem;
+    }
+
+    .benefit-item h4 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .benefit-item p {
+        font-size: 0.85rem;
+        color: #cbd5e1;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    /* CTA Section */
+    .cta-section {
+        padding: 3.5rem 0;
+        background: #fff;
+    }
+
+    .cta-content {
+        background: linear-gradient(135deg, var(--ug-teal) 0%, #2ecc71 100%);
+        border-radius: 16px;
+        padding: 3rem;
+        text-align: center;
+        color: #fff;
+    }
+
+    .cta-content h2 {
+        font-size: 1.8rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+    }
+
+    .cta-content p {
+        font-size: 1rem;
+        margin-bottom: 2rem;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+        opacity: 0.95;
+    }
+
+    .cta-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .cta-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.8rem;
+        border-radius: 10px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s;
+        cursor: pointer;
+        border: none;
+        font-size: 0.95rem;
+    }
+
+    .cta-btn-primary {
+        background: #fff;
+        color: var(--ug-teal);
+    }
+
+    .cta-btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0,0,0,.2);
+    }
+
+    .cta-btn-secondary {
+        border: 2px solid #fff;
+        color: #fff;
+        background: transparent;
+    }
+
+    .cta-btn-secondary:hover {
+        background: rgba(255,255,255,.1);
+        transform: translateY(-2px);
+    }
+
+    /* Tech Stack Section */
+    .tech-section {
+        padding: 3.5rem 0;
+        background: #f8fafc;
+    }
+
+    .tech-section h2 {
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: var(--ug-dark);
+        text-align: center;
+        margin-bottom: 2.5rem;
+    }
+
+    .tech-stack {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1.5rem;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .tech-item {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 10px;
+        text-align: center;
+        border: 1px solid #e8eef5;
+        transition: all 0.3s;
+    }
+
+    .tech-item:hover {
+        border-color: var(--ug-teal);
+        box-shadow: 0 4px 12px rgba(26,188,156,.1);
+    }
+
+    .tech-item-icon {
+        font-size: 2rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .tech-item-name {
+        font-weight: 600;
+        color: var(--ug-dark);
+        font-size: 0.9rem;
+    }
+
+    @media (max-width: 768px) {
+        .about-hero h1 {
+            font-size: 1.8rem;
+        }
+
+        .mission-grid {
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        .cta-content {
+            padding: 2rem;
+        }
+
+        .cta-buttons {
+            flex-direction: column;
+        }
+
+        .cta-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .benefits-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- About Hero -->
+<section class="about-hero">
+    <div class="container">
+        <h1>
+            Giới thiệu <span class="highlight">Urban Green</span>
+        </h1>
+        <p>
+            Nền tảng quản lý cây xanh đô thị với GIS, AI và công cụ thực trường 
+            để quản lý hạ tầng xanh bền vững.
+        </p>
+    </div>
+</section>
+
+<!-- Mission Section -->
+<section class="mission-section">
+    <div class="container">
+        <div style="text-align: center; max-width: 800px; margin: 0 auto;">
+            <h2 style="font-size: 1.8rem; font-weight: 700; color: var(--ug-dark); margin-bottom: 1.5rem;">
+                Tầm nhìn của Urban Green
+            </h2>
+            <p style="font-size: 1rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 2rem;">
+                Chúng tôi tin rằng <strong>cây xanh là tim của các thành phố</strong>. Urban Green được xây dựng để giúp 
+                các đô thị quản lý hạ tầng xanh một cách khoa học, hiệu quả và bền vững — 
+                bằng cách cung cấp dữ liệu chính xác, công cụ quản lý thông minh và hỗ trợ AI.
+            </p>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.5rem;">
+                <div style="padding: 1.5rem; background: #f8fafc; border-radius: 10px; border: 1px solid #e8eef5;">
+                    <div class="mission-icon">
+                        <i class="fas fa-leaf"></i>
+                    </div>
+                    <h4 style="color: var(--ug-dark); font-weight: 700; margin: 0 0 0.3rem;">Bền Vững</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Quản lý xanh lâu dài</p>
+                </div>
+                
+                <div style="padding: 1.5rem; background: #f8fafc; border-radius: 10px; border: 1px solid #e8eef5;">
+                    <div class="mission-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h4 style="color: var(--ug-dark); font-weight: 700; margin: 0 0 0.3rem;">Thông Minh</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Hỗ trợ từ AI</p>
+                </div>
+                
+                <div style="padding: 1.5rem; background: #f8fafc; border-radius: 10px; border: 1px solid #e8eef5;">
+                    <div class="mission-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h4 style="color: var(--ug-dark); font-weight: 700; margin: 0 0 0.3rem;">Dữ liệu</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Quyết định chính xác</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Key Features -->
+<section class="features-section">
+    <div class="container">
+        <div class="section-header">
+            <h2>Tính năng chính</h2>
+            <p>Công cụ toàn diện để quản lý cây xanh hiệu quả</p>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="icon"><i class="fas fa-map-location-dot"></i></div>
+                <h3>Bản đồ GIS tương tác</h3>
+                <p>
+                    Xem toàn bộ cây trên bản đồ, theo dõi vị trí, trạng thái, lịch sử chăm sóc 
+                    và lên kế hoạch công việc từ cái nhìn toàn cảnh.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="icon"><i class="fas fa-wand-magic-sparkles"></i></div>
+                <h3>Đề xuất AI thông minh</h3>
+                <p>
+                    Nhận khuyến nghị chăm sóc dựa trên loài cây, thời tiết, tình trạng sức khỏe 
+                    và lịch sử bảo trì — tiết kiệm thời gian và tối ưu kết quả.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="icon"><i class="fas fa-file-chart-line"></i></div>
+                <h3>Báo cáo & Phân tích chi tiết</h3>
+                <p>
+                    Tạo báo cáo theo thời gian thực về tình trạng cây xanh, hoạt động chăm sóc 
+                    và các khuyến nghị cải thiện dựa trên dữ liệu.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="icon"><i class="fas fa-calendar-check"></i></div>
+                <h3>Lịch chăm sóc tổng hợp</h3>
+                <p>
+                    Lên kế hoạch, ghi lại và theo dõi tưới nước, phun thuốc, cắt tỉa, 
+                    kiểm tra sức khỏe — tất cả ở một nơi.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="icon"><i class="fas fa-list-check"></i></div>
+                <h3>Quản lý loài cây</h3>
+                <p>
+                    Xây dựng thư viện loài với thông tin chăm sóc chi tiết, tần suất tưới, 
+                    đặc tính đặc biệt để tối ưu hoá công việc.
+                </p>
+            </div>
+
+            <div class="feature-card">
+                <div class="icon"><i class="fas fa-users-gear"></i></div>
+                <h3>Quản lý nhân sự & công việc</h3>
+                <p>
+                    Phân công công việc cho đội ngũ, theo dõi tiến độ hoàn thành 
+                    và quản lý hạng mục dự án trên một nền tảng.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Benefits Section -->
+<section class="benefits-section">
+    <div class="container">
+        <h2 style="text-align: center; margin-bottom: 2.5rem;">Lợi ích cho tổ chức của bạn</h2>
+
+        <div class="benefits-grid">
+            <div class="benefit-item">
+                <div class="num">1</div>
+                <h4>Tăng hiệu suất</h4>
+                <p>Tối ưu hóa công việc chăm sóc cây và giảm chi phí hoạt động</p>
+            </div>
+
+            <div class="benefit-item">
+                <div class="num">2</div>
+                <h4>Quyết định tốt hơn</h4>
+                <p>Dữ liệu realtime và AI giúp đưa ra quyết định chiến lược</p>
+            </div>
+
+            <div class="benefit-item">
+                <div class="num">3</div>
+                <h4>Cây xanh khỏe mạnh</h4>
+                <p>Chăm sóc proactive giúp cây xanh phát triển tốt hơn</p>
+            </div>
+
+            <div class="benefit-item">
+                <div class="num">4</div>
+                <h4>Báo cáo minh bạch</h4>
+                <p>Tạo báo cáo chi tiết để thuyết phục nhà đầu tư và cộng đồng</p>
+            </div>
+
+            <div class="benefit-item">
+                <div class="num">5</div>
+                <h4>Kết nối cộng đồng</h4>
+                <p>Tham gia công chúng vào các hoạt động bảo vệ cây xanh</p>
+            </div>
+
+            <div class="benefit-item">
+                <div class="num">6</div>
+                <h4>Tuân thủ quy chuẩn</h4>
+                <p>Đáp ứng các yêu cầu báo cáo và quy chuẩn lâm nghiệp</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Technology Section -->
+<section class="tech-section">
+    <div class="container">
+        <h2>Công nghệ sử dụng</h2>
+        
+        <div class="tech-stack">
+            <div class="tech-item">
+                <div class="tech-item-icon">🗺️</div>
+                <div class="tech-item-name">GIS (Leaflet)</div>
+            </div>
+            <div class="tech-item">
+                <div class="tech-item-icon">🤖</div>
+                <div class="tech-item-name">AI/ML</div>
+            </div>
+            <div class="tech-item">
+                <div class="tech-item-icon">📊</div>
+                <div class="tech-item-name">Real-time Analytics</div>
+            </div>
+            <div class="tech-item">
+                <div class="tech-item-icon">☁️</div>
+                <div class="tech-item-name">Django Backend</div>
+            </div>
+            <div class="tech-item">
+                <div class="tech-item-icon">📱</div>
+                <div class="tech-item-name">Mobile Responsive</div>
+            </div>
+            <div class="tech-item">
+                <div class="tech-item-icon">🔒</div>
+                <div class="tech-item-name">Enterprise Security</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="cta-section">
+    <div class="container">
+        <div class="cta-content">
+            <h2>Sẵn sàng bắt đầu?</h2>
+            <p>
+                Tham gia các thành phố đang sử dụng Urban Green để quản lý hạ tầng xanh bền vững.
+            </p>
+            <div class="cta-buttons">
+                <a href="{% url 'home' %}" class="cta-btn cta-btn-primary">
+                    <i class="fas fa-home"></i> Về Trang Chủ
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

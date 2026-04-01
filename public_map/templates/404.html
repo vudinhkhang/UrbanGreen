@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}404 - Trang không tìm thấy | Urban Green{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-container {
+        min-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 0;
+        background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .error-container::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -10%;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(26, 188, 156, .08) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+
+    .error-content {
+        position: relative;
+        z-index: 2;
+        text-align: center;
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 0 1.5rem;
+    }
+
+    .error-code {
+        font-size: 8rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--ug-teal), #2ecc71);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin: 0;
+        line-height: 1;
+        animation: float 3s ease-in-out infinite;
+    }
+
+    @keyframes float {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-20px); }
+    }
+
+    .error-title {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--ug-dark);
+        margin: 1.5rem 0 0.5rem;
+    }
+
+    .error-message {
+        font-size: 1.05rem;
+        color: var(--text-muted);
+        margin-bottom: 2rem;
+        line-height: 1.6;
+    }
+
+    .error-icon {
+        font-size: 4rem;
+        color: var(--ug-teal);
+        opacity: 0.2;
+        margin-bottom: 1rem;
+        animation: spin 8s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .error-actions {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+
+    .error-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s;
+        font-size: 0.95rem;
+    }
+
+    .error-btn-primary {
+        background: var(--ug-teal);
+        color: #fff;
+        box-shadow: 0 4px 15px rgba(26, 188, 156, 0.3);
+    }
+
+    .error-btn-primary:hover {
+        background: var(--ug-teal-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(26, 188, 156, 0.4);
+        color: #fff;
+    }
+
+    .error-btn-secondary {
+        background: #fff;
+        color: var(--ug-teal);
+        border: 2px solid var(--ug-teal);
+    }
+
+    .error-btn-secondary:hover {
+        background: var(--ug-teal);
+        color: #fff;
+    }
+
+    .error-suggestions {
+        margin-top: 3rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e8eef5;
+    }
+
+    .error-suggestions h3 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--ug-dark);
+        margin-bottom: 1rem;
+    }
+
+    .suggestions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+
+    .suggestion-link {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 1rem;
+        background: #fff;
+        border-radius: 10px;
+        border: 1px solid #e8eef5;
+        text-decoration: none;
+        color: var(--ug-dark);
+        transition: all 0.3s;
+        font-size: 0.85rem;
+    }
+
+    .suggestion-link:hover {
+        border-color: var(--ug-teal);
+        box-shadow: 0 4px 12px rgba(26, 188, 156, 0.12);
+        transform: translateY(-2px);
+    }
+
+    .suggestion-icon {
+        font-size: 1.5rem;
+        color: var(--ug-teal);
+    }
+
+    .suggestion-label {
+        font-weight: 600;
+        text-align: center;
+    }
+
+    @media (max-width: 768px) {
+        .error-code {
+            font-size: 5rem;
+        }
+
+        .error-title {
+            font-size: 1.5rem;
+        }
+
+        .error-message {
+            font-size: 0.95rem;
+        }
+
+        .error-actions {
+            flex-direction: column;
+        }
+
+        .error-btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .suggestions-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="error-container">
+    <div class="error-content">
+        <div class="error-icon">
+            <i class="fas fa-tree"></i>
+        </div>
+        
+        <h1 class="error-code">404</h1>
+        
+        <h2 class="error-title">Trang Không Tìm Thấy</h2>
+        
+        <p class="error-message">
+            Xin lỗi! Đường dẫn bạn đang tìm không tồn tại. 
+            Có thể trang này đã bị xóa hoặc đường dẫn bị nhập sai.
+        </p>
+        
+        <div class="error-actions">
+            <a href="{% url 'home' %}" class="error-btn error-btn-primary">
+                <i class="fas fa-home"></i> Quay về Trang chủ
+            </a>
+            <a href="{% url 'map' %}" class="error-btn error-btn-secondary">
+                <i class="fas fa-map"></i> Mở Bản đồ GIS
+            </a>
+        </div>
+
+        <div class="error-suggestions">
+            <h3>💡 Gợi ý truy cập nhanh:</h3>
+            <div class="suggestions-grid">
+                <a href="{% url 'tree_list' %}" class="suggestion-link">
+                    <span class="suggestion-icon"><i class="fas fa-list"></i></span>
+                    <span class="suggestion-label">Danh sách Cây</span>
+                </a>
+                <a href="{% url 'map' %}" class="suggestion-link">
+                    <span class="suggestion-icon"><i class="fas fa-map-marked-alt"></i></span>
+                    <span class="suggestion-label">Bản đồ GIS</span>
+                </a>
+                {% if user.is_staff %}
+                <a href="{% url 'admin_dashboard' %}" class="suggestion-link">
+                    <span class="suggestion-icon"><i class="fas fa-chart-line"></i></span>
+                    <span class="suggestion-label">Admin Panel</span>
+                </a>
+                <a href="{% url 'maintenance_list' %}" class="suggestion-link">
+                    <span class="suggestion-icon"><i class="fas fa-wand-magic-sparkles"></i></span>
+                    <span class="suggestion-label">AI Đề xuất</span>
+                </a>
+                {% else %}
+                <a href="{% url 'tree_add' %}" class="suggestion-link">
+                    <span class="suggestion-icon"><i class="fas fa-plus"></i></span>
+                    <span class="suggestion-label">Cập nhật Cây</span>
+                </a>
+                <a href="{% url 'user_profile' %}" class="suggestion-link">
+                    <span class="suggestion-icon"><i class="fas fa-user"></i></span>
+                    <span class="suggestion-label">Hồ sơ cá nhân</span>
+                </a>
+                {% endif %}
+                <a href="{% url 'about' %}" class="suggestion-link">
+                    <span class="suggestion-icon"><i class="fas fa-circle-info"></i></span>
+                    <span class="suggestion-label">Về Urban Green</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

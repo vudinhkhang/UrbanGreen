@@ -5,6 +5,22 @@
 
 {% block extra_css %}
 <style>
+    /* Hero Carousel */
+    .hero-carousel-container { position: relative; width: 100%; overflow: hidden; border-radius: 12px; }
+    .hero-carousel { position: relative; width: 100%; padding-bottom: 66.67%; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+    .carousel-slide { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 0.8s ease-in-out; }
+    .carousel-slide.active { opacity: 1; }
+    .carousel-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    
+    /* Carousel controls */
+    .carousel-dots { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 10; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.5); cursor: pointer; transition: all 0.3s; border: 2px solid rgba(255,255,255,0.3); }
+    .dot.active { background: #fff; border-color: #fff; }
+    .carousel-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; background: rgba(255,255,255,0.8); border: none; cursor: pointer; border-radius: 50%; z-index: 10; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #333; transition: all 0.3s; }
+    .carousel-nav:hover { background: #fff; transform: translateY(-50%) scale(1.1); }
+    .carousel-prev { left: 15px; }
+    .carousel-next { right: 15px; }
+
     /* Hero */
     .hero { padding: 3.5rem 0 2.5rem; background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 40%, #f0f9ff 100%); position: relative; overflow: hidden; }
     .hero::before { content: ''; position: absolute; top: -50%; right: -20%; width: 600px; height: 600px; background: radial-gradient(circle, rgba(26,188,156,.08) 0%, transparent 70%); border-radius: 50%; }
@@ -90,6 +106,60 @@
 {% endblock %}
 {% block extra_js %}
 <script>
+// Carousel variables
+let currentSlideIndex = 0;
+const slideCount = 2;
+let carouselAutoPlayInterval;
+
+// Initialize carousel auto-play
+function initCarousel() {
+    startAutoPlay();
+    // Show carousel-specific elements once loaded
+    document.querySelector('.hero-carousel-container').style.opacity = '1';
+}
+
+// Move carousel
+function carouselMove(direction) {
+    clearInterval(carouselAutoPlayInterval);
+    currentSlideIndex = (currentSlideIndex + direction + slideCount) % slideCount;
+    updateCarouselDisplay();
+    startAutoPlay();
+}
+
+// Go to specific slide
+function carouselGoto(index) {
+    clearInterval(carouselAutoPlayInterval);
+    currentSlideIndex = index;
+    updateCarouselDisplay();
+    startAutoPlay();
+}
+
+// Update carousel display
+function updateCarouselDisplay() {
+    const slides = document.querySelectorAll('.carousel-slide');
+    const dots = document.querySelectorAll('.carousel-dots .dot');
+    
+    slides.forEach((slide, idx) => {
+        slide.classList.toggle('active', idx === currentSlideIndex);
+    });
+    
+    dots.forEach((dot, idx) => {
+        dot.classList.toggle('active', idx === currentSlideIndex);
+    });
+}
+
+// Auto-play carousel every 5 seconds
+function startAutoPlay() {
+    carouselAutoPlayInterval = setInterval(() => {
+        currentSlideIndex = (currentSlideIndex + 1) % slideCount;
+        updateCarouselDisplay();
+    }, 5000);
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', initCarousel);
+
+// User interaction on AI preview
 document.addEventListener('DOMContentLoaded', function() {
     var btn = document.getElementById('btn-toggle-ai');
     var list = document.getElementById('ai-preview-list');
@@ -151,11 +221,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 {% endif %}
             </div>
             <div class="col-lg-5 text-center mt-4 mt-lg-0">
-                <img src="https://ekgis.com.vn/wp-content/uploads/2024/10/quan-ly-cay-xanh-do-thi.png"
-                     alt="Ứng dụng phần mềm vào quản lý cây xanh đô thị GIS"
-                     width="600" height="400"
-                     loading="lazy" fetchpriority="high"
-                     style="max-width: 100%; height: auto; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+                <!-- Hero Banner Carousel -->
+                <div class="hero-carousel-container">
+                    <div class="hero-carousel">
+                        <!-- Slide 1 -->
+                        <div class="carousel-slide active">
+                            <img src="{% static 'images/banner.png' %}" alt="Quản lý cây xanh đô thị - Kiểm kê và chăm sóc cây" loading="lazy" fetchpriority="high">
+                        </div>
+                        <!-- Slide 2 -->
+                        <div class="carousel-slide">
+                            <img src="{% static 'images/banner2.png' %}" alt="Nâng cao chất lượng sống - Quản lý cây xanh thông minh" loading="lazy">
+                        </div>
+                    </div>
+                    <!-- Carousel Controls -->
+                    <button class="carousel-nav carousel-prev" onclick="carouselMove(-1)" title="Ảnh trước">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="carousel-nav carousel-next" onclick="carouselMove(1)" title="Ảnh sau">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                    <!-- Carousel Dots -->
+                    <div class="carousel-dots">
+                        <span class="dot active" onclick="carouselGoto(0)" title="Slide 1"></span>
+                        <span class="dot" onclick="carouselGoto(1)" title="Slide 2"></span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -216,6 +306,74 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div>
                         <div class="stat-number" style="color:#3b82f6;">{{ total_logs }}</div>
                         <div class="stat-label">Chăm sóc</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ABOUT INTRO SECTION -->
+<section style="padding: 3rem 0; background: #f8fafc; border-top: 1px solid #e8eef5;">
+    <div class="container">
+        <div style="max-width: 900px; margin: 0 auto;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: center;">
+                <div>
+                    <h2 style="font-size: 1.5rem; font-weight: 800; color: var(--ug-dark); margin-bottom: 1rem;">
+                        Quản lý Cây Xanh <span style="color: var(--ug-teal);">Thông Minh</span> cho Đô Thị Bền Vững
+                    </h2>
+                    <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.2rem; line-height: 1.6;">
+                        Urban Green là nền tảng quản lý toàn diện cây xanh đô thị, kết hợp công nghệ GIS, 
+                        AI và theo dõi thời gian thực để tối ưu hóa hiệu-suất chăm sóc.
+                    </p>
+                    
+                    <div style="display: grid; gap: 1rem;">
+                        <div style="display: flex; gap: 1rem;">
+                            <div style="width: 40px; height: 40px; background: #e6f9f1; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <i class="fas fa-map-location-dot" style="color: var(--ug-teal); font-size: 1rem;"></i>
+                            </div>
+                            <div>
+                                <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--ug-dark); margin: 0 0 0.2rem;">Bản đồ GIS</h4>
+                                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Xem toàn bộ cây trên bản đồ tương tác</p>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 1rem;">
+                            <div style="width: 40px; height: 40px; background: #fef2f2; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <i class="fas fa-wand-magic-sparkles" style="color: #667eea; font-size: 1rem;"></i>
+                            </div>
+                            <div>
+                                <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--ug-dark); margin: 0 0 0.2rem;">Đề xuất AI</h4>
+                                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Khuyến nghị chăm sóc dựa trên dữ liệu</p>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 1rem;">
+                            <div style="width: 40px; height: 40px; background: #eff6ff; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                <i class="fas fa-chart-line" style="color: #3b82f6; font-size: 1rem;"></i>
+                            </div>
+                            <div>
+                                <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--ug-dark); margin: 0 0 0.2rem;">Báo cáo Phân tích</h4>
+                                <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Dữ liệu chi tiết để ra quyết định</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <a href="{% url 'about' %}" style="display: inline-block; margin-top: 1.5rem; color: var(--ug-teal); text-decoration: none; font-weight: 600; font-size: 0.9rem;">
+                        Tìm hiểu thêm <i class="fas fa-arrow-right ms-2"></i>
+                    </a>
+                </div>
+                
+                <div style="text-align: center;">
+                    <div style="background: linear-gradient(135deg, var(--ug-teal), #2ecc71); border-radius: 12px; padding: 2rem; color: #fff; box-shadow: 0 10px 30px rgba(26,188,156,.2);">
+                        <div style="font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem;">{{ total_trees }}</div>
+                        <div style="font-size: 0.95rem; opacity: 0.9;">Cây được quản lý</div>
+                        <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,.2); display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; text-align: center; font-size: 0.85rem;">
+                            <div><div style="font-size: 1.5rem; font-weight: 700;">{{ total_species }}</div>
+                            <div style="opacity: 0.8;">Loài cây</div></div>
+                            <div><div style="font-size: 1.5rem; font-weight: 700;">{{ total_logs }}</div>
+                            <div style="opacity: 0.8;">Hoạt động CS</div></div>
+                        </div>
                     </div>
                 </div>
             </div>

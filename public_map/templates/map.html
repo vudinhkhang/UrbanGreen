@@ -74,12 +74,75 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        position: relative;
     }
     .tree-popup .tp-image {
         width: 100%;
         height: 100%;
         object-fit: cover;
         display: block;
+        cursor: pointer;
+    }
+    /* Gallery navigation in popup */
+    .tree-popup .tp-gallery-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(0,0,0,0.5);
+        color: white;
+        border: none;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        font-size: 0.9rem;
+        padding: 0;
+    }
+    .tree-popup .tp-gallery-nav:hover {
+        background: rgba(0,0,0,0.7);
+    }
+    .tree-popup .tp-image-wrap:hover .tp-gallery-nav {
+        display: flex;
+    }
+    .tree-popup .tp-gallery-nav.prev {
+        left: 4px;
+    }
+    .tree-popup .tp-gallery-nav.next {
+        right: 4px;
+    }
+    .tree-popup .tp-image-counter {
+        position: absolute;
+        bottom: 4px;
+        right: 6px;
+        background: rgba(0,0,0,0.6);
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 0.7rem;
+        z-index: 10;
+    }
+    .tree-popup .tp-thumbnails {
+        display: flex;
+        gap: 4px;
+        overflow-x: auto;
+        margin-bottom: 8px;
+        padding: 4px 0;
+    }
+    .tree-popup .tp-thumbnail {
+        width: 40px;
+        height: 40px;
+        border-radius: 4px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        flex-shrink: 0;
+        object-fit: cover;
+    }
+    .tree-popup .tp-thumbnail.active {
+        border-color: #1abc9c;
     }
     .tree-popup .tp-image-empty {
         font-size: .78rem;
@@ -88,7 +151,6 @@
         align-items: center;
         gap: 6px;
     }
-    .tree-popup .tp-title { font-weight: 700; font-size: .95rem; margin-bottom: 4px; color: var(--ug-dark); }
     .tree-popup .tp-row { font-size: .82rem; color: var(--text-muted); line-height: 1.6; }
     .tree-popup .tp-actions { display: flex; gap: 5px; margin-top: 8px; }
     .tree-popup .tp-actions .btn { font-size: .75rem; padding: .25rem .55rem; }
@@ -240,17 +302,13 @@
 
 {% block content %}
 <div class="container-fluid px-3 py-3">
-    <div class="page-header" style="margin-bottom:.8rem; padding-bottom:.6rem;">
+    <div class="page-header" style="margin-bottom:.8rem; padding-bottom:.6rem; display:flex; justify-content:space-between; align-items:center;">
         <div>
             <h2 class="page-title"><i class="fas fa-map"></i> Bản đồ Cây Xanh GIS</h2>
         </div>
-        <div class="page-actions">
-            {% if user.is_staff %}
-            <a href="{% url 'tree_add' %}" class="btn btn-success btn-sm">
-                <i class="fas fa-plus-circle"></i> Thêm cây
-            </a>
-            {% endif %}
-        </div>
+        <a href="{% url 'tree_add' %}" class="btn btn-success btn-sm" title="Thêm cây mới vào hệ thống">
+            <i class="fas fa-plus-circle"></i> Thêm cây mới
+        </a>
     </div>
 
     <div class="map-wrap">
@@ -498,12 +556,18 @@
         attribution: '&copy; OpenTopoMap'
     });
 
-    // Mặc định hiển thị OSM
-    osmLayer.addTo(map);
+    var cartoDarkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
+        attribution: '&copy; CartoDB',
+        maxZoom: 19
+    });
+
+    // Mặc định hiển thị CartoDB (không có POI)
+    cartoDarkLayer.addTo(map);
 
     // Layer control — góc phải
     L.control.layers({
-        '<i class="fas fa-map"></i> Bản đồ': osmLayer,
+        '<i class="fas fa-map"></i> Sạch (không POI)': cartoDarkLayer,
+        '<i class="fas fa-map"></i> Bản đồ OSM': osmLayer,
         '<i class="fas fa-satellite"></i> Vệ tinh': satelliteLayer,
         '<i class="fas fa-mountain"></i> Địa hình': terrainLayer
     }, null, { position: 'topright', collapsed: true }).addTo(map);
@@ -565,16 +629,51 @@
         var addressText = tree.address ? tree.address : 'Chưa cập nhật';
         var latText = Number(tree.lat).toFixed(6);
         var longText = Number(tree.long).toFixed(6);
-        var imageHtml = tree.image
-            ? '<img class="tp-image" src="' + tree.image + '" alt="Ảnh cây ' + tree.code + '">'
-            : '<div class="tp-image-empty"><i class="fas fa-image"></i> Chưa có ảnh cây</div>';
+        var imageHtml = '';
+        var thumbnailsHtml = '';
+        
+        // Check if tree has multiple images
+        if (tree.images && tree.images.length > 0) {
+            // Create main image gallery with navigation
+            imageHtml = '<div class="tp-image-wrap" id="img-wrap-' + tree.id + '">';
+            tree.images.forEach(function(imgUrl, idx) {
+                imageHtml += '<img class="tp-image gallery-img-' + tree.id + '" src="' + imgUrl + '" alt="Ảnh ' + (idx + 1) + '" ' +
+                    'style="display: ' + (idx === 0 ? 'block' : 'none') + ';" data-index="' + idx + '" ' + 
+                    'onclick="cycleMapGallery(' + tree.id + ')">';
+            });
+            
+            // Add navigation buttons if more than 1 image
+            if (tree.images.length > 1) {
+                imageHtml += '<button class="tp-gallery-nav prev" onclick="prevMapImage(' + tree.id + ')"><i class="fas fa-chevron-left"></i></button>';
+                imageHtml += '<button class="tp-gallery-nav next" onclick="nextMapImage(' + tree.id + ')"><i class="fas fa-chevron-right"></i></button>';
+                imageHtml += '<div class="tp-image-counter"><span id="cur-' + tree.id + '">1</span>/<span id="tot-' + tree.id + '">' + tree.images.length + '</span></div>';
+            }
+            imageHtml += '</div>';
+            
+            // Create thumbnails if more than 1 image
+            if (tree.images.length > 1) {
+                thumbnailsHtml = '<div class="tp-thumbnails">';
+                tree.images.forEach(function(imgUrl, idx) {
+                    thumbnailsHtml += '<img src="' + imgUrl + '" class="tp-thumbnail ' + (idx === 0 ? 'active' : '') + '" ' +
+                        'onclick="goToMapImage(' + tree.id + ', ' + idx + ')" alt="Thumb ' + (idx + 1) + '">';
+                });
+                thumbnailsHtml += '</div>';
+            }
+        } else if (tree.image) {
+            // Single image fallback
+            imageHtml = '<div class="tp-image-wrap"><img class="tp-image" src="' + tree.image + '" alt="Ảnh cây ' + tree.code + '"></div>';
+        } else {
+            // No image
+            imageHtml = '<div class="tp-image-wrap"><div class="tp-image-empty"><i class="fas fa-image"></i> Chưa có ảnh cây</div></div>';
+        }
 
         var marker = L.marker([tree.lat, tree.long], { icon: treeIcon(tree.status) });
         markerGroup.addLayer(marker);
 
         marker.bindPopup(
-            '<div class="tree-popup">'
-            + '<div class="tp-image-wrap">' + imageHtml + '</div>'
+            '<div class="tree-popup" id="popup-' + tree.id + '">'
+            + imageHtml
+            + thumbnailsHtml
             + '<div class="tp-title">' + tree.code + ' <span class="badge bg-' + badgeClass + '" style="font-size:.7rem;">' + statusText + '</span></div>'
             + '<div class="tp-row">' + tree.name + ' · ' + tree.height + 'm</div>'
             + '<div class="tp-row"><i class="fas fa-location-dot"></i> ' + addressText + '</div>'
@@ -713,6 +812,55 @@
         document.getElementById('route-info').classList.remove('active');
         document.getElementById('route-info').innerHTML = '';
         document.getElementById('btn-clear-route').style.display = 'none';
+    }
+
+    // ========== GALLERY NAVIGATION FUNCTIONS FOR POPUP ==========
+    var mapGalleryIndices = {};
+
+    function showMapImage(treeId, index) {
+        var images = document.querySelectorAll('.gallery-img-' + treeId);
+        if (images.length === 0) return;
+        
+        if (!mapGalleryIndices[treeId]) mapGalleryIndices[treeId] = 0;
+        
+        // Wrap around
+        if (index >= images.length) index = 0;
+        if (index < 0) index = images.length - 1;
+        
+        mapGalleryIndices[treeId] = index;
+        
+        // Hide all
+        images.forEach(img => img.style.display = 'none');
+        // Show current
+        images[index].style.display = 'block';
+        
+        // Update counter
+        var curElem = document.getElementById('cur-' + treeId);
+        if (curElem) curElem.textContent = index + 1;
+        
+        // Update thumbnail active state
+        document.querySelectorAll('#popup-' + treeId + ' .tp-thumbnail').forEach((thumb, idx) => {
+            thumb.classList.toggle('active', idx === index);
+        });
+    }
+
+    function nextMapImage(treeId) {
+        var current = mapGalleryIndices[treeId] || 0;
+        showMapImage(treeId, current + 1);
+    }
+
+    function prevMapImage(treeId) {
+        var current = mapGalleryIndices[treeId] || 0;
+        showMapImage(treeId, current - 1);
+    }
+
+    function cycleMapGallery(treeId) {
+        var current = mapGalleryIndices[treeId] || 0;
+        showMapImage(treeId, current + 1);
+    }
+
+    function goToMapImage(treeId, index) {
+        showMapImage(treeId, index);
     }
 
     // Chỉ đường tới cây cụ thể khi click nút trong popup
@@ -870,37 +1018,76 @@
     var radiusMode = false;
     var radiusCircle = null;
     var radiusMarkers = [];
+    var radiusCenter = null;
+    var isLoadingRadius = false;
 
     function toggleRadiusMode() {
         radiusMode = !radiusMode;
         var btn = document.getElementById('btn-radius');
+        var infoDiv = document.getElementById('radius-info');
+        
         if (radiusMode) {
             btn.classList.replace('btn-outline-primary', 'btn-primary');
-            map.getContainer().style.cursor = 'crosshair';
+            // Show loading status
+            infoDiv.innerHTML = '<div class="text-muted"><i class="fas fa-spinner fa-spin"></i> Đang lấy vị trí...</div>';
+            infoDiv.classList.add('active');
+            isLoadingRadius = true;
+            
+            // Automatically get user's location
+            if (!navigator.geolocation) {
+                infoDiv.innerHTML = '<div class="text-danger"><i class="fas fa-exclamation-circle"></i> Trình duyệt không hỗ trợ định vị.</div>';
+                isLoadingRadius = false;
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                function(pos) {
+                    radiusCenter = L.latLng(pos.coords.latitude, pos.coords.longitude);
+                    searchRadius(radiusCenter);
+                    isLoadingRadius = false;
+                    // Allow clicking to change center
+                    map.getContainer().style.cursor = 'crosshair';
+                    infoDiv.innerHTML = '<div class="small text-muted"><i class="fas fa-info-circle"></i> Click bản đồ để thay đổi trung tâm</div>';
+                },
+                function() {
+                    infoDiv.innerHTML = '<div class="text-warning"><i class="fas fa-exclamation-triangle"></i> Không thể lấy vị trí. Click bản đồ để chọn trung tâm.</div>';
+                    isLoadingRadius = false;
+                    map.getContainer().style.cursor = 'crosshair';
+                },
+                { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+            );
         } else {
             btn.classList.replace('btn-primary', 'btn-outline-primary');
             map.getContainer().style.cursor = '';
+            infoDiv.classList.remove('active');
+            infoDiv.innerHTML = '';
         }
     }
 
-    map.on('click', function(e) {
-        if (!radiusMode) return;
+    function searchRadius(center) {
         clearRadius();
         var radius = parseInt(document.getElementById('radius-val').value) || 200;
-        var center = e.latlng;
-
+        
+        // Create circle
         radiusCircle = L.circle(center, {
             radius: radius, color: '#3498db', fillColor: '#3498db',
             fillOpacity: 0.1, weight: 2, dashArray: '6, 4'
         }).addTo(map);
 
+        // Add center marker
+        var centerMarker = L.circleMarker(center, {
+            radius: 6, color: '#3498db', fillColor: '#fff', fillOpacity: 1, weight: 2
+        }).addTo(map).bindPopup('Trung tâm tìm kiếm');
+        radiusMarkers.push(centerMarker);
+
+        // Search for trees in radius
         var found = [];
         treeData.forEach(function(t) {
             var dist = haversine(center.lat, center.lng, t.lat, t.long) * 1000;
             if (dist <= radius) {
                 found.push({ tree: t, dist: Math.round(dist) });
                 var m = L.circleMarker([t.lat, t.long], {
-                    radius: 8, color: '#3498db', fillColor: '#3498db', fillOpacity: 0.6, weight: 2
+                    radius: 7, color: '#3498db', fillColor: '#3498db', fillOpacity: 0.7, weight: 1.5
                 }).addTo(map).bindPopup(
                     '<strong>' + t.code + '</strong> — ' + t.name + '<br>Khoảng cách: ' + Math.round(dist) + 'm'
                 );
@@ -911,14 +1098,14 @@
         found.sort(function(a, b) { return a.dist - b.dist; });
         var infoDiv = document.getElementById('radius-info');
         if (found.length === 0) {
-            infoDiv.innerHTML = '<div class="text-muted">Không có cây nào trong bán kính ' + radius + 'm.</div>';
+            infoDiv.innerHTML = '<div class="text-muted small">Bán kính: ' + radius + 'm | Không có cây nào</div>';
         } else {
-            var html = '<div class="fw-bold mb-1">Tìm thấy ' + found.length + ' cây:</div>';
+            var html = '<div class="fw-bold mb-1 small">Tìm thấy ' + found.length + ' cây (bán kính ' + radius + 'm):</div>';
             found.slice(0, 8).forEach(function(f) {
                 var statusLabel = f.tree.status === 'SAU_BENH' ? '🟡' : f.tree.status === 'NGUY_HIEM' ? '🔴' : '🟢';
                 html += '<div style="font-size:.75rem;">' + statusLabel + ' ' + f.tree.code + ' — ' + f.dist + 'm</div>';
             });
-            if (found.length > 8) html += '<div class="text-muted" style="font-size:.72rem;">... và ' + (found.length - 8) + ' cây khác</div>';
+            if (found.length > 8) html += '<div class="text-muted small">... và ' + (found.length - 8) + ' cây khác</div>';
             infoDiv.innerHTML = html;
         }
         infoDiv.classList.add('active');
@@ -927,20 +1114,30 @@
 
         // Zoom to circle
         map.fitBounds(radiusCircle.getBounds(), { padding: [40, 40] });
+    }
 
-        // Exit radius mode
-        toggleRadiusMode();
+    map.on('click', function(e) {
+        if (!radiusMode || isLoadingRadius) return;
+        searchRadius(e.latlng);
     });
 
     function clearRadius() {
         if (radiusCircle) { map.removeLayer(radiusCircle); radiusCircle = null; }
         radiusMarkers.forEach(function(m) { map.removeLayer(m); });
         radiusMarkers = [];
+        radiusCenter = null;
         document.getElementById('radius-info').classList.remove('active');
         document.getElementById('radius-info').innerHTML = '';
         document.getElementById('btn-clear-radius').style.display = 'none';
         document.getElementById('legend-radius').style.display = 'none';
     }
+
+    // Auto-update search when radius value changes
+    document.getElementById('radius-val').addEventListener('input', function() {
+        if (radiusCenter && !isLoadingRadius && radiusMode) {
+            searchRadius(radiusCenter);
+        }
+    });
 
     // ========== BULK MAINTENANCE FEATURE ==========
     var bulkSelectionMode = false;
