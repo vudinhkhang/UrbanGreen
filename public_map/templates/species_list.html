@@ -122,69 +122,85 @@
         </div>
         
         <!-- Phân trang -->
-        {% if paginator.num_pages > 1 %}
-        <nav aria-label="Phân trang" style="margin-top: 20px;">
-            <ul class="pagination mb-0">
-                <!-- Nút Trang Trước -->
-                {% if page_obj.has_previous %}
-                <li class="page-item">
-                    <a class="page-link" href="?page=1{% if query %}&q={{ query }}{% endif %}{% if trait_filter %}&trait={{ trait_filter }}{% endif %}">
-                        <i class="fas fa-chevron-left"></i> Đầu
-                    </a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if trait_filter %}&trait={{ trait_filter }}{% endif %}">
-                        <i class="fas fa-angle-left"></i> Trước
-                    </a>
-                </li>
-                {% else %}
-                <li class="page-item disabled">
-                    <span class="page-link"><i class="fas fa-chevron-left"></i> Đầu</span>
-                </li>
-                <li class="page-item disabled">
-                    <span class="page-link"><i class="fas fa-angle-left"></i> Trước</span>
-                </li>
-                {% endif %}
-
-                <!-- Số Trang -->
-                {% for num in paginator.page_range %}
+        <div style="margin-top: 30px;">
+            <!-- Thông tin trang -->
+            <div style="margin-bottom: 15px;">
+                <p class="text-muted text-center">
+                    <small>Hiển thị {{ page_obj.object_list|length }} loài | Trang <strong>{{ page_obj.number }}</strong> / <strong>{{ page_obj.paginator.num_pages }}</strong> (Tổng: <strong>{{ total_species }}</strong> loài)</small>
+                </p>
+            </div>
+            
+            <!-- Pagination buttons (chỉ hiển thị nếu > 1 trang) -->
+            {% if page_obj.paginator.num_pages > 1 %}
+            <nav aria-label="Phân trang" class="d-flex justify-content-center">
+                <ul class="pagination">
+                    <!-- First page -->
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if query %}&q={{ query }}{% endif %}{% if trait_filter %}&trait={{ trait_filter }}{% endif %}" aria-label="Trang đầu">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-chevron-left"></i></span>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- Previous page -->
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if trait_filter %}&trait={{ trait_filter }}{% endif %}" aria-label="Trang trước">Trước</a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Trước</span>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- Page numbers -->
+                    {% for num in page_obj.paginator.page_range %}
                     {% if page_obj.number == num %}
-                    <li class="page-item active">
-                        <span class="page-link">{{ num }}</span>
+                    <li class="page-item active" aria-current="page">
+                        <span class="page-link">
+                            {{ num }}
+                            <span class="visually-hidden">(hiện tại)</span>
+                        </span>
                     </li>
                     {% else %}
                     <li class="page-item">
                         <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}{% if trait_filter %}&trait={{ trait_filter }}{% endif %}">{{ num }}</a>
                     </li>
                     {% endif %}
-                {% endfor %}
-
-                <!-- Nút Trang Sau -->
-                {% if page_obj.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if trait_filter %}&trait={{ trait_filter }}{% endif %}">
-                        Sau <i class="fas fa-angle-right"></i>
-                    </a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}{% if trait_filter %}&trait={{ trait_filter }}{% endif %}">
-                        Cuối <i class="fas fa-chevron-right"></i>
-                    </a>
-                </li>
-                {% else %}
-                <li class="page-item disabled">
-                    <span class="page-link">Sau <i class="fas fa-angle-right"></i></span>
-                </li>
-                <li class="page-item disabled">
-                    <span class="page-link">Cuối <i class="fas fa-chevron-right"></i></span>
-                </li>
-                {% endif %}
-            </ul>
-        </nav>
-        <p class="text-muted text-center mt-3">
-            <small>Trang {{ page_obj.number }} / {{ paginator.num_pages }} (Tổng: {{ total_species }} loài)</small>
-        </p>
-        {% endif %}
+                    {% endfor %}
+                    
+                    <!-- Next page -->
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if trait_filter %}&trait={{ trait_filter }}{% endif %}" aria-label="Trang sau">Sau</a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Sau</span>
+                    </li>
+                    {% endif %}
+                    
+                    <!-- Last page -->
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}{% if trait_filter %}&trait={{ trait_filter }}{% endif %}" aria-label="Trang cuối">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
         {% else %}
         <p class="text-muted mb-0">Không tìm thấy loài cây phù hợp.</p>
         {% endif %}

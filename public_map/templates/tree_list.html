@@ -112,50 +112,85 @@
     </div>
 
     <!-- Phân trang -->
-    {% if paginator.num_pages > 1 %}
-    <nav aria-label="Page navigation" class="mt-4">
-        <ul class="pagination justify-content-center">
-            {% if page_obj.has_previous %}
-            <li class="page-item">
-                <a class="page-link" href="?page=1{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" title="Trang đầu">
-                    <i class="fas fa-chevron-left"></i> <i class="fas fa-chevron-left"></i>
-                </a>
-            </li>
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
-                    <i class="fas fa-chevron-left"></i>
-                </a>
-            </li>
-            {% endif %}
-
-            {% for num in paginator.page_range %}
+    <div style="margin-top: 30px;">
+        <!-- Thông tin trang -->
+        <div style="margin-bottom: 15px;">
+            <p class="text-muted text-center">
+                <small>Hiển thị {{ page_obj.object_list|length }} cây | Trang <strong>{{ page_obj.number }}</strong> / <strong>{{ page_obj.paginator.num_pages }}</strong> (Tổng: <strong>{{ page_obj.paginator.count }}</strong> cây)</small>
+            </p>
+        </div>
+        
+        <!-- Pagination buttons (chỉ hiển thị nếu > 1 trang) -->
+        {% if page_obj.paginator.num_pages > 1 %}
+        <nav aria-label="Page navigation" class="d-flex justify-content-center">
+            <ul class="pagination">
+                <!-- First page -->
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" aria-label="Trang đầu">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="fas fa-chevron-left"></i></span>
+                </li>
+                {% endif %}
+                
+                <!-- Previous page -->
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" aria-label="Trang trước">Trước</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Trước</span>
+                </li>
+                {% endif %}
+                
+                <!-- Page numbers -->
+                {% for num in page_obj.paginator.page_range %}
                 {% if page_obj.number == num %}
-                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                <li class="page-item active" aria-current="page">
+                    <span class="page-link">
+                        {{ num }}
+                        <span class="visually-hidden">(hiện tại)</span>
+                    </span>
+                </li>
                 {% else %}
                 <li class="page-item">
                     <a class="page-link" href="?page={{ num }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ num }}</a>
                 </li>
                 {% endif %}
-            {% endfor %}
-
-            {% if page_obj.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
-                    <i class="fas fa-chevron-right"></i>
-                </a>
-            </li>
-            <li class="page-item">
-                <a class="page-link" href="?page={{ paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" title="Trang cuối">
-                    <i class="fas fa-chevron-right"></i> <i class="fas fa-chevron-right"></i>
-                </a>
-            </li>
-            {% endif %}
-        </ul>
-    </nav>
-    <div class="text-center text-muted small">
-        Trang <strong>{{ page_obj.number }}</strong> của <strong>{{ paginator.num_pages }}</strong> · Tổng: <strong>{{ paginator.count }}</strong> cây
+                {% endfor %}
+                
+                <!-- Next page -->
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" aria-label="Trang sau">Sau</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Sau</span>
+                </li>
+                {% endif %}
+                
+                <!-- Last page -->
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}" aria-label="Trang cuối">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
     </div>
-    {% endif %}
     
     {% else %}
     <div class="alert alert-info text-center">
