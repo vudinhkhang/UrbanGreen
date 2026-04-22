@@ -31,6 +31,18 @@
     {% endfor %}
     {% endif %}
 
+    <!-- Nút hành động (Import/Export) -->
+    {% if user.is_staff %}
+    <div style="margin-bottom: 1.5rem; display: flex; gap: 0.75rem; flex-wrap: wrap;">
+        <a href="{% url 'import_trees' %}" class="btn btn-success btn-sm">
+            <i class="fas fa-file-import"></i> Nhập từ file
+        </a>
+        <a href="{% url 'export_trees' %}" class="btn btn-info btn-sm">
+            <i class="fas fa-file-export"></i> Xuất Excel
+        </a>
+    </div>
+    {% endif %}
+
     <!-- Form Tìm kiếm & Lọc -->
     <div class="card mb-4">
         <div class="card-body">

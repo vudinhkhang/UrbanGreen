@@ -8,9 +8,10 @@ from public_map.views import (
     species_list_view, species_add_view, species_edit_view, species_delete_view,
     maintenance_list_view, dashboard_view,
     export_trees_csv, export_maintenance_csv,
+    import_trees_view, import_maintenance_view,
     bulk_maintenance_view,
     custom_logout_view,
-    admin_dashboard_view, admin_users_view, user_profile_view, admin_activity_view,
+    admin_dashboard_view, admin_users_view, admin_district_permissions_view, user_profile_view, admin_activity_view,
     custom_404_view, custom_500_view,
 )
 
@@ -21,6 +22,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin-panel/', admin_dashboard_view, name='admin_dashboard'),
     path('admin-users/', admin_users_view, name='admin_users'),
+    path('admin-permissions/', admin_district_permissions_view, name='admin_district_permissions'),
     path('admin-activities/', admin_activity_view, name='admin_activities'),
     path('user-profile/', user_profile_view, name='user_profile'),
     path('admin/', admin.site.urls),
@@ -40,6 +42,8 @@ urlpatterns = [
     path('dashboard/', dashboard_view, name='dashboard'),
     path('export/trees/', export_trees_csv, name='export_trees'),
     path('export/maintenance/', export_maintenance_csv, name='export_maintenance'),
+    path('import/trees/', import_trees_view, name='import_trees'),
+    path('import/maintenance/', import_maintenance_view, name='import_maintenance'),
     path('maintenance/', maintenance_list_view, name='maintenance_list'),
     path('api/bulk-maintenance/', bulk_maintenance_view, name='bulk_maintenance'),
     # Test error pages in DEBUG mode (remove in production)

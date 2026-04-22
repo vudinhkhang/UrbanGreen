@@ -18,9 +18,73 @@ class TreeSpecies(models.Model):
     def __str__(self):
         return self.name
 
+# 1.5 Bảng Chất lượng Đất
+class SoilQuality(models.Model):
+    SOIL_TYPES = [
+        ('fertile', '🌱 Đất tốt/Đất màu mỡ'),
+        ('compacted', '🪨 Đất xây dựng/Nén chặt'),
+        ('acidic', '🧪 Đất chua'),
+    ]
+    
+    name = models.CharField(max_length=50, unique=True, verbose_name="Tên chất lượng đất")
+    soil_type = models.CharField(max_length=20, choices=SOIL_TYPES, unique=True, verbose_name="Loại đất")
+    description = models.TextField(verbose_name="Mô tả", blank=True)
+    growth_impact = models.CharField(max_length=20, default='normal', choices=[
+        ('slows_growth', 'Chậm phát triển'),
+        ('normal', 'Bình thường'),
+        ('accelerated', 'Phát triển nhanh'),
+    ], verbose_name="Tác động đến tốc độ phát triển")
+    
+    def __str__(self):
+        return self.get_soil_type_display()
+    
+    class Meta:
+        verbose_name_plural = "Chất lượng đất"
+
+# 1.6 Bảng Quận/Huyện
+class District(models.Model):
+    name = models.CharField(max_length=100, unique=True, verbose_name="Tên quận/huyện")
+    code = models.CharField(max_length=10, unique=True, verbose_name="Mã quận/huyện")
+    description = models.TextField(verbose_name="Mô tả", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name = "Quận/Huyện"
+        verbose_name_plural = "Quận/Huyện"
+
+# 1.7 Bảng Gán quận cho người dùng
+class UserManagedDistrict(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        verbose_name="Người dùng",
+        related_name='managed_districts'
+    )
+    district = models.ForeignKey(
+        District,
+        on_delete=models.CASCADE,
+        verbose_name="Quận/Huyện",
+        related_name='managed_by_users'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.district.name}"
+    
+    class Meta:
+        unique_together = ('user', 'district')
+        verbose_name = "Quận/Huyện được quản lý"
+        verbose_name_plural = "Quận/Huyện được quản lý"
+
 # 2. Bảng Cây Xanh
 class UrbanTree(models.Model):
     species = models.ForeignKey(TreeSpecies, on_delete=models.CASCADE, verbose_name="Loài cây")
+    soil_qualities = models.ManyToManyField(SoilQuality, blank=True, verbose_name="Chất lượng đất", related_name='trees')
+    district = models.ForeignKey(District, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Quận/Huyện", related_name='trees')
     code = models.CharField(max_length=20, unique=True, verbose_name="Mã cây")
     height = models.FloatField(verbose_name="Chiều cao (m)")
     status = models.CharField(max_length=50, verbose_name="Trạng thái", choices=[
@@ -37,6 +101,11 @@ class UrbanTree(models.Model):
     
     # Hình ảnh cây - upload_to: Tự động tạo thư mục 'tree_images' để chứa ảnh upload lên
     image = models.ImageField(upload_to='tree_images/', verbose_name="Hình ảnh", blank=True, null=True)
+    
+    # Các chỉ số đo lường cây (Thêm vào từ migration 0009)
+    trunk_radius = models.FloatField(blank=True, null=True, verbose_name="Đường kính thân cây (cm)", help_text="Đo đường kính thân cây tại ngực tính bằng cm")
+    canopy_diameter = models.FloatField(blank=True, null=True, verbose_name="Diện tích vòm che phủ (m²)", help_text="Diện tích vòm che phủ tính bằng mét vuông")
+    planting_year = models.IntegerField(blank=True, null=True, verbose_name="Năm trồng cây", help_text="Năm cây được trồng")
 
     def __str__(self):
         return f"{self.code} - {self.species.name}"
@@ -85,6 +154,16 @@ class MaintenanceLog(models.Model):
     ])
     performer = models.CharField(max_length=100, verbose_name="Người thực hiện")
     note = models.TextField(verbose_name="Ghi chú/Kết quả", blank=True)
+    
+    # Các fields dành cho từng loại hành động
+    fertilizer_name = models.CharField(max_length=150, blank=True, null=True, verbose_name="Tên phân bón", help_text="Dùng khi bón phân")
+    pesticide_name = models.CharField(max_length=150, blank=True, null=True, verbose_name="Tên thuốc", help_text="Dùng khi phun thuốc")
+    water_amount = models.FloatField(blank=True, null=True, verbose_name="Lượng nước (lít)", help_text="Dùng khi tưới nước")
+    
+    # Các chỉ số đo lường (từ migration 0010)
+    measurement_height = models.FloatField(blank=True, null=True, verbose_name="Chiều cao (m)", help_text="Cập nhật chiều cao cây nếu kiểm tra")
+    measurement_trunk_radius = models.FloatField(blank=True, null=True, verbose_name="Đường kính thân (cm)", help_text="Cập nhật đường kính thân nếu kiểm tra")
+    measurement_canopy_diameter = models.FloatField(blank=True, null=True, verbose_name="Diện tích vòm (m²)", help_text="Cập nhật diện tích vòm nếu kiểm tra")
 
     def __str__(self):
         return f"{self.tree.code} - {self.action} ({self.date})"

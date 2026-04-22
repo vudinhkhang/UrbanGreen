@@ -76,23 +76,13 @@
 
                         <!-- Row 2 -->
                         <div class="row">
-                            <div class="col-md-4 mb-3">
-                                <label for="height" class="form-label"><strong>Chiều cao trung bình (m)</strong></label>
-                                <input type="number" class="form-control" id="height" name="height" step="0.1" placeholder="VD: 5.5">
-                                <small class="text-muted">Chiều cao mặc định cho mỗi cây. Có thể sửa từng cây bên dưới.</small>
+                            <div class="col-md-6 mb-3">
+                                <label for="planting_year" class="form-label"><strong>Năm trồng cây <span class="text-danger">*</span></strong></label>
+                                <input type="number" class="form-control" id="planting_year" name="planting_year" placeholder="VD: 2020" min="1900" max="2026" required>
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label"><strong>Trạng thái mặc định</strong></label>
-                                <select class="form-select" id="default-status">
-                                    {% for code, label in status_choices %}
-                                    <option value="{{ code }}"{% if code == 'TOT' %} selected{% endif %}>{{ label }}</option>
-                                    {% endfor %}
-                                </select>
-                                <small class="text-muted">Trạng thái áp dụng khi thêm cây mới. Có thể sửa từng cây bên dưới.</small>
-                            </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="address" class="form-label">Địa chỉ</label>
-                                <input type="text" class="form-control" id="address" name="address" placeholder="Địa chỉ chi tiết (VD: Đường Lê Văn Sỹ)">
+                            <div class="col-md-6 mb-3">
+                                <label for="address" class="form-label">Địa chỉ chi tiết</label>
+                                <input type="text" class="form-control" id="address" name="address" placeholder="VD: Đường Lê Văn Sỹ, số 10">
                             </div>
                         </div>
 
@@ -140,16 +130,69 @@
                             <div class="new-tree-list" id="new-tree-list"></div>
                         </div>
 
+                        <!-- Danh sách cây mới đã chọn -->
+                        <div class="mb-3" id="new-trees-panel" style="display:none;">
+                            <label class="form-label"><strong><i class="fas fa-list-ol"></i> Vị trí đã chọn (<span id="new-count">0</span> cây)</strong></label>
+                            <div class="new-tree-list" id="new-tree-list"></div>
+                        </div>
+
                         <!-- Chiều cao từng cây -->
                         <div class="mb-3" id="heights-panel" style="display:none;">
                             <label class="form-label"><strong><i class="fas fa-ruler-vertical"></i> Chiều cao từng cây (m)</strong></label>
                             <div id="heights-list"></div>
                         </div>
 
+                        <!-- Đường kính thân từng cây -->
+                        <div class="mb-3" id="trunk-radius-panel" style="display:none;">
+                            <label class="form-label"><strong><i class="fas fa-circle"></i> Đường kính thân từng cây (cm)</strong></label>
+                            <div id="trunk-radius-list"></div>
+                        </div>
+
+                        <!-- Diện tích vòm từng cây -->
+                        <div class="mb-3" id="canopy-diameter-panel" style="display:none;">
+                            <label class="form-label"><strong><i class="fas fa-tree"></i> Diện tích vòm từng cây (m²)</strong></label>
+                            <div id="canopy-diameter-list"></div>
+                        </div>
+
                         <!-- Trạng thái từng cây -->
                         <div class="mb-3" id="statuses-panel" style="display:none;">
                             <label class="form-label"><strong><i class="fas fa-heartbeat"></i> Trạng thái từng cây</strong></label>
                             <div id="statuses-list"></div>
+                        </div>
+
+                        <!-- Năm trồng từng cây -->
+                        <div class="mb-3" id="planting-year-panel" style="display:none;">
+                            <label class="form-label"><strong><i class="fas fa-calendar"></i> Năm trồng từng cây</strong></label>
+                            <div id="planting-year-list"></div>
+                        </div>
+
+                        <!-- Chất lượng đất -->
+                        <div class="mb-3">
+                            <label for="district" class="form-label"><strong><i class="fas fa-map-pin"></i> Quận/Huyện</strong></label>
+                            <select class="form-select" id="district" name="district">
+                                <option value="">-- Tất cả quận/huyện --</option>
+                                {% for district in districts %}
+                                <option value="{{ district.id }}">{{ district.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted mt-2 d-block"><i class="fas fa-info-circle"></i> Chọn quận/huyện nơi cây sẽ được quản lý (tuỳ chọn)</small>
+                        </div>
+
+                        <!-- Chất lượng đất -->
+                        <div class="mb-3">
+                            <label class="form-label"><strong><i class="fas fa-leaf"></i> Chất lượng đất</strong></label>
+                            <div class="d-flex flex-column gap-2">
+                                {% for soil in soil_qualities %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" id="soil_{{ soil.id }}" name="soil_quality" value="{{ soil.id }}">
+                                    <label class="form-check-label" for="soil_{{ soil.id }}">
+                                        <strong>{{ soil.get_soil_type_display }}</strong>
+                                        <small class="text-muted d-block">{{ soil.description }}</small>
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <small class="text-muted mt-2 d-block"><i class="fas fa-info-circle"></i> Chọn 1 loại chất lượng đất áp dụng cho các cây được thêm.</small>
                         </div>
 
                         <!-- Hình ảnh -->
@@ -182,11 +225,12 @@
                 <div class="card-body">
                     <p><strong>Cách thêm nhiều cây:</strong></p>
                     <ol class="small">
-                        <li>Chọn loài cây, nhập tiền tố mã (VD: <code>CX</code>)</li>
-                        <li>Chọn chiều cao &amp; trạng thái chung</li>
-                        <li>Click nhiều vị trí trên bản đồ</li>
-                        <li>Mã cây tự tạo: CX001, CX002...</li>
-                        <li>Bấm <strong>Thêm Cây</strong> để lưu tất cả</li>
+                        <li>Chọn loài cây &amp; nhập <strong>tiền tố mã</strong> (VD: <code>CX</code>)</li>
+                        <li>Nhập <strong>năm trồng</strong> (bắt buộc) &amp; <strong>địa chỉ</strong> (tuỳ chọn)</li>
+                        <li>Click <strong>nhiều vị trí</strong> trên bản đồ để chọn cây</li>
+                        <li>Mã cây tự tạo: <code>CX001</code>, <code>CX002</code>...</li>
+                        <li>Nhập <strong>thông tin từng cây</strong> (chiều cao, bán kính, vòm, trạng thái)</li>
+                        <li>Thêm <strong>ảnh</strong> (tuỳ chọn) rồi bấm <strong>Thêm Cây</strong></li>
                     </ol>
                     <hr>
                     <p><strong>Chú thích bản đồ:</strong></p>
@@ -295,9 +339,21 @@
 
         m.bindTooltip('Cây mới #' + (idx + 1), { direction: 'top', offset: [0, -14] });
 
-        var defStatus = document.getElementById('default-status').value;
-        var defHeight = parseFloat(document.getElementById('height').value) || 0;
-        newTrees.push({ lat: lat, lng: lng, marker: m, status: defStatus, statusChanged: false, height: defHeight, heightChanged: false });
+        var defStatus = document.getElementById('default-status') ? document.getElementById('default-status').value : 'TOT';
+        var defHeight = 0;
+        newTrees.push({ 
+            lat: lat, 
+            lng: lng, 
+            marker: m, 
+            status: defStatus, 
+            statusChanged: false, 
+            height: defHeight, 
+            heightChanged: false,
+            trunk_radius: null,
+            trunk_radiusChanged: false,
+            canopy_diameter: null,
+            canopy_diameterChanged: false
+        });
         updateUI();
     }
 
@@ -360,15 +416,15 @@
         // Cập nhật chiều cao từng cây
         var heightsPanel = document.getElementById('heights-panel');
         var heightsList = document.getElementById('heights-list');
-        var defaultHeight = parseFloat(document.getElementById('height').value) || 0;
+        var defaultHeight = 0; // Không còn chiều cao mặc định từ form
         var hHtml = '';
         if (newTrees.length > 0) {
             heightsPanel.style.display = 'block';
             newTrees.forEach(function(t, i) {
-                var curH = t.height || defaultHeight;
+                var curH = t.height !== undefined ? t.height : '';
                 hHtml += '<div class="input-group mb-2">'
                     + '<span class="input-group-text" style="font-size:.85rem;min-width:90px;"><i class="fas fa-ruler-vertical"></i>&nbsp;' + prefix + String(i + 1).padStart(3, '0') + '</span>'
-                    + '<input type="number" class="form-control" name="heights" step="0.1" value="' + curH + '" onchange="updateTreeHeight(' + i + ', this.value)">'
+                    + '<input type="number" class="form-control" name="heights" step="0.1" value="' + (curH !== '' ? curH : '') + '" placeholder="VD: 5.5" onchange="updateTreeHeight(' + i + ', this.value)">'
                     + '<span class="input-group-text">m</span>'
                     + '</div>';
             });
@@ -380,16 +436,12 @@
         // Cập nhật trạng thái từng cây
         var statusPanel = document.getElementById('statuses-panel');
         var statusList = document.getElementById('statuses-list');
-        var defaultStatus = document.getElementById('default-status').value;
-        var statusOptions = '';
-        document.getElementById('default-status').querySelectorAll('option').forEach(function(opt) {
-            statusOptions += '<option value="' + opt.value + '">' + opt.textContent + '</option>';
-        });
+        var statusOptions = '<option value="TOT">Tốt</option><option value="SAU_BENH">Sâu bệnh</option><option value="NGUY_HIEM">Nguy hiểm</option>';
         var stHtml = '';
         if (newTrees.length > 0) {
             statusPanel.style.display = 'block';
             newTrees.forEach(function(t, i) {
-                var curVal = t.status || defaultStatus;
+                var curVal = t.status || 'TOT';
                 var opts = statusOptions.replace('value="' + curVal + '"', 'value="' + curVal + '" selected');
                 stHtml += '<div class="input-group mb-2">'
                     + '<span class="input-group-text" style="font-size:.85rem;min-width:90px;"><i class="fas fa-heartbeat"></i>&nbsp;' + prefix + String(i + 1).padStart(3, '0') + '</span>'
@@ -400,6 +452,44 @@
             statusPanel.style.display = 'none';
         }
         statusList.innerHTML = stHtml;
+
+        // Cập nhật đường kính thân từng cây
+        var trunkPanel = document.getElementById('trunk-radius-panel');
+        var trunkList = document.getElementById('trunk-radius-list');
+        var trunkHtml = '';
+        if (newTrees.length > 0) {
+            trunkPanel.style.display = 'block';
+            newTrees.forEach(function(t, i) {
+                var curVal = t.trunk_radius || '';
+                trunkHtml += '<div class="input-group mb-2">'
+                    + '<span class="input-group-text" style="font-size:.85rem;min-width:90px;"><i class="fas fa-circle"></i>&nbsp;' + prefix + String(i + 1).padStart(3, '0') + '</span>'
+                    + '<input type="number" class="form-control" name="trunk_radius" step="0.1" value="' + (curVal ? curVal : '') + '" placeholder="VD: 15.5" onchange="updateTreeTrunkRadius(' + i + ', this.value)">'
+                    + '<span class="input-group-text">cm</span>'
+                    + '</div>';
+            });
+        } else {
+            trunkPanel.style.display = 'none';
+        }
+        trunkList.innerHTML = trunkHtml;
+
+        // Cập nhật diện tích vòm từng cây
+        var canopyPanel = document.getElementById('canopy-diameter-panel');
+        var canopyList = document.getElementById('canopy-diameter-list');
+        var canopyHtml = '';
+        if (newTrees.length > 0) {
+            canopyPanel.style.display = 'block';
+            newTrees.forEach(function(t, i) {
+                var curVal = t.canopy_diameter || '';
+                canopyHtml += '<div class="input-group mb-2">'
+                    + '<span class="input-group-text" style="font-size:.85rem;min-width:90px;"><i class="fas fa-tree"></i>&nbsp;' + prefix + String(i + 1).padStart(3, '0') + '</span>'
+                    + '<input type="number" class="form-control" name="canopy_diameter" step="0.1" value="' + (curVal ? curVal : '') + '" placeholder="VD: 50.0" onchange="updateTreeCanopyDiameter(' + i + ', this.value)">'
+                    + '<span class="input-group-text">m²</span>'
+                    + '</div>';
+            });
+        } else {
+            canopyPanel.style.display = 'none';
+        }
+        canopyList.innerHTML = canopyHtml;
 
         // Cập nhật danh sách input ảnh
         var imgList = document.getElementById('images-list');
@@ -423,21 +513,7 @@
 
     // Khi thay đổi prefix → cập nhật danh sách hiển thị
     document.getElementById('code').addEventListener('input', updateUI);
-    document.getElementById('default-status').addEventListener('change', function() {
-        // Áp dụng trạng thái mặc định cho cây chưa thay đổi
-        var val = this.value;
-        newTrees.forEach(function(t) {
-            if (!t.statusChanged) t.status = val;
-        });
-        updateUI();
-    });
-    document.getElementById('height').addEventListener('input', function() {
-        var val = parseFloat(this.value) || 0;
-        newTrees.forEach(function(t) {
-            if (!t.heightChanged) t.height = val;
-        });
-        updateUI();
-    });
+
 
     function updateTreeStatus(idx, val) {
         newTrees[idx].status = val;
@@ -447,6 +523,16 @@
     function updateTreeHeight(idx, val) {
         newTrees[idx].height = parseFloat(val) || 0;
         newTrees[idx].heightChanged = true;
+    }
+
+    function updateTreeTrunkRadius(idx, val) {
+        newTrees[idx].trunk_radius = val ? parseFloat(val) : null;
+        newTrees[idx].trunk_radiusChanged = true;
+    }
+
+    function updateTreeCanopyDiameter(idx, val) {
+        newTrees[idx].canopy_diameter = val ? parseFloat(val) : null;
+        newTrees[idx].canopy_diameterChanged = true;
     }
 
     function addManualCoord() {
@@ -555,47 +641,47 @@
         }
     });
 
-    // Xử lý form submit - gửi file đúng cách
+    // Xử lý form submit - validate trước khi submit
     document.getElementById('tree-form').addEventListener('submit', function(e) {
-        e.preventDefault();
+        console.log('=== Form submit event ===');
+        console.log('newTrees.length:', newTrees.length);
+        console.log('species:', document.getElementById('species').value);
+        console.log('code:', document.getElementById('code').value);
         
         if (newTrees.length === 0) {
             alert('Vui lòng click trên bản đồ để chọn ít nhất 1 vị trí cây!');
+            e.preventDefault();
             return;
         }
+        
+        const species = document.getElementById('species').value;
+        if (!species) {
+            alert('Vui lòng chọn loài cây!');
+            e.preventDefault();
+            return;
+        }
+        
+        const code = document.getElementById('code').value.trim();
+        if (!code) {
+            alert('Vui lòng nhập mã cây (tiền tố)!');
+            e.preventDefault();
+            return;
+        }
+        
+        // Cập nhật locations input value trước submit
+        var locs = newTrees.map(function(t) { return { lat: t.lat, lng: t.lng }; });
+        document.getElementById('locations-input').value = JSON.stringify(locs);
+        
+        console.log('locations-input value:', document.getElementById('locations-input').value);
+        console.log('Form is valid, submitting...');
         
         // Disable nút submit để tránh double submit
         const submitBtn = this.querySelector('button[type="submit"]');
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
         
-        // Tạo FormData từ form - sẽ include tất cả input và file
-        const formData = new FormData(this);
-        
-        // Debug: Log tất cả form data
-        console.log('FormData keys:', [...formData.keys()]);
-        for (let [key, value] of formData.entries()) {
-            if (value instanceof File) {
-                console.log(`  ${key}: ${value.name} (${value.size} bytes)`);
-            }
-        }
-        
-        // Submit bằng fetch
-        fetch(window.location.href, {
-            method: 'POST',
-            body: formData,
-            redirect: 'follow'
-        })
-        .then(response => {
-            // Reload page sau submit
-            setTimeout(() => location.reload(), 1000);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-save"></i> Thêm Cây';
-            alert('❌ Lỗi: ' + error.message);
-        });
+        // Let form submit normally
+        return true;
     });
 </script>
 {% endblock %}

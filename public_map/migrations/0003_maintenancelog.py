@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
                         choices=[
                             ("CAT_TIA", "Cắt tỉa cành"),
                             ("BON_PHAN", "Bón phân"),
-                            ("PHUN_THUOC", "Phun thuốc trừ sâu"),
+                            ("PHUN_THUOC", "Phun thuốc"),
                             ("KIEM_TRA", "Kiểm tra định kỳ"),
                         ],
                         max_length=200,

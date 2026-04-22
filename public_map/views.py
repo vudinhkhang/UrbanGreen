@@ -1,5 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import UrbanTree, MaintenanceLog, TreeSpecies, ManagementZone, ActivityLog
+from .models import UrbanTree, MaintenanceLog, TreeSpecies, ManagementZone, ActivityLog, District, UserManagedDistrict
 import json
 from django.db.models import Q, Max, Subquery, OuterRef, F, Value, CharField, Count
 from django.db.models.functions import Coalesce, TruncMonth
@@ -81,6 +81,15 @@ def map_view(request):
     # 2. Bắt đầu với toàn bộ cây
     trees = UrbanTree.objects.all()
 
+    # 2a. Áp dụng bộ lọc quyền - người dùng thường chỉ thấy quận/huyện được gán + cây không được gán
+    if not request.user.is_staff:
+        allowed_districts = District.objects.filter(
+            managed_by_users__user=request.user
+        ).distinct()
+        trees = trees.filter(
+            Q(district__in=allowed_districts) | Q(district__isnull=True)
+        )
+
     # 3. Nếu có từ khóa tìm kiếm (theo Tên loài hoặc Mã cây)
     if query:
         trees = trees.filter(
@@ -124,11 +133,180 @@ def map_view(request):
         'status_filter': status_filter
     })
 
+# Hàm tạo danh sách đề xuất chăm sóc cho một cây
+def generate_maintenance_recommendations(tree):
+    """
+    Sinh danh sách đề xuất chăm sóc dựa trên đặc tính loài và trạng thái cây
+    Returns: list of dicts với các key: 'type', 'title', 'description', 'icon', 'priority'
+    priority: 'critical', 'warning', 'info'
+    """
+    recommendations = []
+    species = tree.species
+    
+    # 1. Kiểm tra trạng thái nguy hiểm
+    if tree.status == 'NGUY_HIEM':
+        recommendations.append({
+            'type': 'danger',
+            'title': 'Cây nguy hiểm — cần xử lý ngay',
+            'description': 'Cây ở trạng thái nguy hiểm, cần kiểm tra và xử lý khẩn cấp.',
+            'icon': '🚨',
+            'priority': 'critical',
+            'action': 'KIEM_TRA'
+        })
+    
+    # 2. Kiểm tra trạng thái sâu bệnh
+    if tree.status == 'SAU_BENH':
+        recommendations.append({
+            'type': 'warning',
+            'title': 'Cây sâu bệnh — cần chăm sóc',
+            'description': 'Cây có dấu hiệu sâu bệnh, cần kiểm tra và điều trị kịp thời.',
+            'icon': '⚠️',
+            'priority': 'warning',
+            'action': 'KIEM_TRA'
+        })
+    
+    # 3. Kiểm tra lịch sử kiểm tra (nếu chưa kiểm tra bao lâu)
+    last_inspection = MaintenanceLog.objects.filter(
+        tree=tree, 
+        action='KIEM_TRA'
+    ).order_by('-date').first()
+    
+    inspection_freq_days = species.inspection_frequency_days or 90
+    
+    if last_inspection:
+        days_since_inspection = (date.today() - last_inspection.date).days
+        if days_since_inspection > inspection_freq_days:
+            recommendations.append({
+                'type': 'info',
+                'title': 'Quá hạn kiểm tra',
+                'description': f'Cây chưa kiểm tra trong {days_since_inspection} ngày. Chu kỳ kiểm tra: {inspection_freq_days} ngày.',
+                'icon': '📋',
+                'priority': 'warning',
+                'action': 'KIEM_TRA'
+            })
+    else:
+        # Chưa bao giờ kiểm tra
+        recommendations.append({
+            'type': 'info',
+            'title': 'Chưa từng kiểm tra',
+            'description': f'Cây chưa có lịch sử kiểm tra. Chu kỳ kiểm tra: {inspection_freq_days} ngày.',
+            'icon': '📋',
+            'priority': 'info',
+            'action': 'KIEM_TRA'
+        })
+    
+    # 4. Kiểm tra đặc tính loài sâu bệnh
+    if species.is_pest_prone:
+        last_pesticide = MaintenanceLog.objects.filter(
+            tree=tree,
+            action='PHUN_THUOC'
+        ).order_by('-date').first()
+        
+        if not last_pesticide:
+            recommendations.append({
+                'type': 'warning',
+                'title': 'Loài dễ sâu bệnh — cần phun thuốc',
+                'description': f'{species.name} dễ bị sâu bệnh. Chưa từng phun thuốc trừ sâu.',
+                'icon': '🐛',
+                'priority': 'warning',
+                'action': 'PHUN_THUOC'
+            })
+    
+    # 5. Kiểm tra dễ đổ/gãy
+    if species.is_fall_prone:
+        recommendations.append({
+            'type': 'warning',
+            'title': 'Loài dễ đổ/gãy — cần cắt tỉa',
+            'description': f'{species.name} dễ đổ/gãy, cần cắt tỉa cõng định kỳ để giảm khối lượng.',
+            'icon': '💨',
+            'priority': 'warning',
+            'action': 'CAT_TIA'
+        })
+    
+    # 6. Kiểm tra mọc nhanh
+    if species.is_fast_growing:
+        last_pruning = MaintenanceLog.objects.filter(
+            tree=tree,
+            action='CAT_TIA'
+        ).order_by('-date').first()
+        
+        if not last_pruning:
+            recommendations.append({
+                'type': 'info',
+                'title': 'Cắt cắt tỉa — loại mọc nhanh',
+                'description': f'{species.name} mọc nhanh cần cắt tỉa thường xuyên. Chưa từng cắt tỉa.',
+                'icon': '✂️',
+                'priority': 'info',
+                'action': 'CAT_TIA'
+            })
+        else:
+            days_since_pruning = (date.today() - last_pruning.date).days
+            if days_since_pruning > 180:  # >6 tháng
+                recommendations.append({
+                    'type': 'info',
+                    'title': 'Cắt tỉa — loại mọc nhanh',
+                    'description': f'{species.name} mọc nhanh, lần cắt tỉa cuối cùng là {days_since_pruning} ngày trước.',
+                    'icon': '✂️',
+                    'priority': 'info',
+                    'action': 'CAT_TIA'
+                })
+    
+    # 7. Kiểm tra nhạy cảm hạn
+    if species.is_drought_sensitive:
+        watering_freq = species.watering_frequency_days or 7
+        last_watering = MaintenanceLog.objects.filter(
+            tree=tree,
+            action='TUOI_NUOC'
+        ).order_by('-date').first()
+        
+        if last_watering:
+            days_since_watering = (date.today() - last_watering.date).days
+            if days_since_watering > watering_freq * 2:  # Quá hạn tưới 2 lần
+                recommendations.append({
+                    'type': 'warning',
+                    'title': 'Tưới nước — loài nhạy hạn',
+                    'description': f'{species.name} nhạy cảm hạn hán. Lần tưới cuối: {days_since_watering} ngày. Chu kỳ tưới: {watering_freq} ngày.',
+                    'icon': '💧',
+                    'priority': 'warning',
+                    'action': 'TUOI_NUOC'
+                })
+        else:
+            recommendations.append({
+                'type': 'warning',
+                'title': 'Tưới nước — loài nhạy hạn',
+                'description': f'{species.name} nhạy cảm hạn hán, chưa có lịch tưới nước. Chu kỳ tưới: {watering_freq} ngày.',
+                'icon': '💧',
+                'priority': 'warning',
+                'action': 'TUOI_NUOC'
+            })
+    
+    # 8. Kiểm tra rễ xâm lấn
+    if species.is_invasive_roots:
+        recommendations.append({
+            'type': 'info',
+            'title': 'Rễ xâm lấn — cần kiểm tra',
+            'description': f'{species.name} có rễ xâm lấn, cần kiểm tra định kỳ để tránh hư hại công trình.',
+            'icon': '🌳',
+            'priority': 'info',
+            'action': 'KIEM_TRA'
+        })
+    
+    return recommendations
+
 # Hàm mới: Xem chi tiết 1 cây
 @login_required
 def tree_detail_view(request, tree_id):
     # Lấy cây theo ID, nếu không thấy thì báo lỗi 404
     tree = get_object_or_404(UrbanTree, id=tree_id)
+    
+    # Kiểm tra quyền - người dùng thường chỉ có thể xem cây trong quận/huyện được gán hoặc cây không được gán
+    if not request.user.is_staff:
+        allowed_districts = District.objects.filter(
+            managed_by_users__user=request.user
+        ).distinct()
+        if tree.district and not allowed_districts.filter(id=tree.district.id).exists():
+            messages.error(request, '❌ Bạn không có quyền xem cây này. Cây này thuộc quận/huyện khác.')
+            return redirect('tree_list')
     
     # ============ LẤY DỮ LIỆU HIỂN THỊ (Trước để tránh xung đột biến) ============
     # Lấy toàn bộ lịch sử chăm sóc của cây này, sắp xếp mới nhất lên đầu
@@ -182,33 +360,9 @@ def tree_detail_view(request, tree_id):
             except Exception as e:
                 messages.error(request, f'❌ Lỗi khi xóa ảnh: {str(e)}')
         
-        # 0. Xử lý chỉnh sửa thông tin cây (nếu có submit từ tab Sửa thông tin)
-        if 'edit_tree' in request.POST:
-            try:
-                old_code = tree.code
-                tree.species_id = request.POST.get('species', tree.species_id)
-                tree.code = request.POST.get('code', tree.code).strip()
-                tree.height = float(request.POST.get('height', tree.height))
-                tree.status = request.POST.get('status', tree.status)
-                tree.latitude = float(request.POST.get('latitude', tree.latitude))
-                tree.longitude = float(request.POST.get('longitude', tree.longitude))
-                tree.address = request.POST.get('address', tree.address)
-                
-                tree.save()
-                log_activity(
-                    request,
-                    action_type='EDIT_TREE',
-                    entity_type='TREE',
-                    entity_code=tree.code,
-                    detail=f'Cập nhật cây {old_code} -> {tree.code}',
-                )
-                messages.success(request, f'✅ Cập nhật cây {tree.code} thành công!')
-                return redirect('tree_detail', tree_id=tree_id)
-            
-            except ValueError:
-                messages.error(request, '❌ Vui lòng nhập dữ liệu đúng định dạng!')
-            except Exception as e:
-                messages.error(request, f'❌ Lỗi: {str(e)}')
+        # 0. Loại bỏ xử lý chỉnh sửa thông tin cây (form đã bị xóa khỏi template)
+        # Các trường chiều cao, trunk_radius, canopy_diameter, planting_year không thể chỉnh sửa từ detail view
+        # Nếu cần chỉnh sửa, hãy sử dụng tree_add.html/tree_edit.html
         
         # 1. Cập nhật/Thêm ảnh cây nếu có upload (hỗ trợ nhiều ảnh)
         elif 'image' in request.FILES:
@@ -234,6 +388,7 @@ def tree_detail_view(request, tree_id):
                 detail=f'Cập nhật {len(uploaded_files)} ảnh cho cây {tree.code}',
             )
             messages.success(request, f'✅ Tải lên {len(uploaded_files)} ảnh thành công!')
+            return redirect('tree_detail', tree_id=tree_id)
         
         # 2. Thêm lịch sử chăm sóc nếu có submit form
         if 'add_maintenance' in request.POST:
@@ -243,13 +398,166 @@ def tree_detail_view(request, tree_id):
             note = request.POST.get('note', '')
             
             if maintenance_date and action and performer:
-                MaintenanceLog.objects.create(
+                # Chuẩn bị dữ liệu cho tạo MaintenanceLog
+                maintenance_log = MaintenanceLog(
                     tree=tree,
                     date=maintenance_date,
                     action=action,
                     performer=performer,
                     note=note
                 )
+                
+                # Theo dõi các thay đổi để hiển thị "từ X → Y"
+                changes_detail = []
+                
+                # Thêm các trường tùy theo loại công việc (nếu được hỗ trợ)
+                try:
+                    if action == 'BON_PHAN':
+                        fertilizer = request.POST.get('fertilizer_name', '').strip()
+                        if fertilizer and hasattr(maintenance_log, 'fertilizer_name'):
+                            try:
+                                maintenance_log.fertilizer_name = fertilizer
+                                changes_detail.append(f"Phân bón: loại {fertilizer}")
+                            except:
+                                pass
+                            
+                    elif action == 'PHUN_THUOC':
+                        pesticide = request.POST.get('pesticide_name', '').strip()
+                        if pesticide and hasattr(maintenance_log, 'pesticide_name'):
+                            try:
+                                maintenance_log.pesticide_name = pesticide
+                                changes_detail.append(f"Chất bảo vệ thực vật: {pesticide}")
+                            except:
+                                pass
+                            
+                    elif action == 'TUOI_NUOC':
+                        water_amount = request.POST.get('water_amount', '')
+                        if water_amount and hasattr(maintenance_log, 'water_amount'):
+                            try:
+                                water_val = float(water_amount)
+                                maintenance_log.water_amount = water_val
+                                changes_detail.append(f"Lượng nước tưới: {water_val} lít")
+                            except (ValueError, TypeError):
+                                pass
+                                
+                    elif action == 'CAT_TIA':
+                        # Cắt tỉa - cập nhật diện tích vòm (nếu column tồn tại)
+                        canopy_diameter = request.POST.get('measurement_canopy_diameter', '')
+                        if canopy_diameter:
+                            try:
+                                new_value = float(canopy_diameter)
+                                if hasattr(tree, 'canopy_diameter'):
+                                    try:
+                                        old_value = float(tree.canopy_diameter) if tree.canopy_diameter else 0
+                                        tree.canopy_diameter = new_value
+                                        maintenance_log.measurement_canopy_diameter = new_value
+                                        if new_value < old_value:
+                                            change_desc = f"Diện tích vòm giảm từ {old_value}m² xuống {new_value}m²"
+                                        elif new_value > old_value:
+                                            change_desc = f"Diện tích vòm tăng từ {old_value}m² lên {new_value}m²"
+                                        else:
+                                            change_desc = f"Diện tích vòm: {new_value}m² (không thay đổi)"
+                                        changes_detail.append(change_desc)
+                                    except (ValueError, TypeError):
+                                        pass
+                            except ValueError:
+                                pass
+                                
+                    elif action == 'KIEM_TRA':
+                        # Kiểm tra định kỳ - cập nhật kích thước (height, trunk_radius, canopy_diameter)
+                        height = request.POST.get('measurement_height', '')
+                        trunk_radius = request.POST.get('measurement_trunk_radius', '')
+                        canopy_diameter = request.POST.get('measurement_canopy_diameter', '')
+                        
+                        if height:
+                            try:
+                                new_value = float(height)
+                                old_value = float(tree.height) if tree.height else 0
+                                tree.height = new_value
+                                maintenance_log.measurement_height = new_value
+                                if new_value < old_value:
+                                    change_desc = f"Chiều cao cây giảm từ {old_value}m xuống {new_value}m"
+                                elif new_value > old_value:
+                                    change_desc = f"Chiều cao cây tăng từ {old_value}m lên {new_value}m"
+                                else:
+                                    change_desc = f"Chiều cao cây: {new_value}m (không thay đổi)"
+                                changes_detail.append(change_desc)
+                            except (ValueError, TypeError):
+                                pass
+                        
+                        # trunk_radius và canopy_diameter chỉ update nếu model có field
+                        if trunk_radius and hasattr(tree, 'trunk_radius'):
+                            try:
+                                new_value = float(trunk_radius)
+                                old_value = float(tree.trunk_radius) if tree.trunk_radius else 0
+                                tree.trunk_radius = new_value
+                                maintenance_log.measurement_trunk_radius = new_value
+                                if new_value < old_value:
+                                    change_desc = f"Đường kính thân cây giảm từ {old_value}cm xuống {new_value}cm"
+                                elif new_value > old_value:
+                                    change_desc = f"Đường kính thân cây tăng từ {old_value}cm lên {new_value}cm"
+                                else:
+                                    change_desc = f"Đường kính thân cây: {new_value}cm (không thay đổi)"
+                                changes_detail.append(change_desc)
+                            except (ValueError, TypeError):
+                                pass
+                        
+                        if canopy_diameter and hasattr(tree, 'canopy_diameter'):
+                            try:
+                                new_value = float(canopy_diameter)
+                                old_value = float(tree.canopy_diameter) if tree.canopy_diameter else 0
+                                tree.canopy_diameter = new_value
+                                maintenance_log.measurement_canopy_diameter = new_value
+                                if new_value < old_value:
+                                    change_desc = f"Diện tích vòm giảm từ {old_value}m² xuống {new_value}m²"
+                                elif new_value > old_value:
+                                    change_desc = f"Diện tích vòm tăng từ {old_value}m² lên {new_value}m²"
+                                else:
+                                    change_desc = f"Diện tích vòm: {new_value}m² (không thay đổi)"
+                                changes_detail.append(change_desc)
+                            except (ValueError, TypeError):
+                                pass
+                    
+                    # Thêm chi tiết thay đổi vào note nếu có
+                    if changes_detail:
+                        detail_str = " | ".join(changes_detail)
+                        if maintenance_log.note:
+                            maintenance_log.note = f"{maintenance_log.note} [{detail_str}]"
+                        else:
+                            maintenance_log.note = detail_str
+                    
+                    # Lưu MaintenanceLog
+                    try:
+                        maintenance_log.save()
+                    except Exception as e:
+                        # Nếu lỗi vì column không tồn tại, save lại mà không new fields
+                        if 'does not exist' in str(e).lower():
+                            # Tạo mới MaintenanceLog chỉ với fields cơ bản (maintain.note đã có changes_detail)
+                            maintenance_log = MaintenanceLog(
+                                tree=tree,
+                                date=maintenance_date,
+                                action=action,
+                                performer=performer,
+                                note=maintenance_log.note  # Sử dụng note đã được update, không phải note cũ
+                            )
+                            maintenance_log.save()
+                        else:
+                            raise
+                    
+                    # Lưu tree với các thay đổi measurements
+                    try:
+                        tree.save()
+                    except Exception as e:
+                        if 'does not exist' in str(e).lower():
+                            # Nếu lỗi column không tồn tại, save tất cả measurement fields
+                            tree.save(update_fields=['height', 'trunk_radius', 'canopy_diameter'])
+                        else:
+                            raise
+                    
+                except Exception as e:
+                    messages.error(request, f'❌ Lỗi khi lưu lịch sử chăm sóc: {str(e)}')
+                    return redirect('tree_detail', tree_id=tree_id)
+                
                 log_activity(
                     request,
                     action_type='ADD_MAINTENANCE',
@@ -257,18 +565,20 @@ def tree_detail_view(request, tree_id):
                     entity_code=tree.code,
                     detail=f'Thêm chăm sóc {action} cho cây {tree.code} bởi {performer}',
                 )
+                
                 # Cập nhật trạng thái cây nếu được chọn
                 new_status = request.POST.get('new_status', '')
                 if new_status and new_status != tree.status:
-                    old_display = tree.get_status_display()
                     tree.status = new_status
                     tree.save()
-                    messages.success(request, f'✅ Thêm lịch sử chăm sóc và cập nhật trạng thái → {tree.get_status_display()} thành công!')
-                else:
-                    messages.success(request, '✅ Thêm lịch sử chăm sóc thành công!')
+                
+                messages.success(request, '✅ Thêm lịch sử chăm sóc thành công!')
                 return redirect('tree_detail', tree_id=tree_id)
             else:
                 messages.error(request, '❌ Vui lòng điền đầy đủ thông tin bắt buộc!')
+    
+    # Sinh danh sách đề xuất chăm sóc
+    suggested_maintenance = generate_maintenance_recommendations(tree)
     
     return render(request, 'tree_detail.html', {
         'tree': tree,
@@ -278,6 +588,8 @@ def tree_detail_view(request, tree_id):
         'today': today,
         'tree_images': tree.images.all().order_by('-uploaded_at'),  # Lấy tất cả ảnh, sắp xếp mới nhất trước
         'species_list': TreeSpecies.objects.all(),
+        'suggested_maintenance': suggested_maintenance,  # Danh sách đề xuất
+        'soil_qualities': tree.soil_qualities.all(),  # Chất lượng đất của cây
     })
 
 # ============ DANH SÁCH CÂY ============
@@ -286,7 +598,16 @@ def tree_list_view(request):
     query = request.GET.get('q', '')
     status_filter = request.GET.get('status', '')
     
-    trees = UrbanTree.objects.all().select_related('species')
+    trees = UrbanTree.objects.all().select_related('species', 'district')
+    
+    # Apply permission filtering - regular users only see their assigned districts + unspecified trees
+    if not request.user.is_staff:
+        allowed_districts = District.objects.filter(
+            managed_by_users__user=request.user
+        ).distinct()
+        trees = trees.filter(
+            Q(district__in=allowed_districts) | Q(district__isnull=True)
+        )
     
     if query:
         trees = trees.filter(
@@ -317,22 +638,45 @@ def tree_list_view(request):
 @login_required
 def tree_add_view(request):
     if request.method == 'POST':
+        print(f"\n=== DEBUG: tree_add POST request ===")
+        print(f"POST data keys: {list(request.POST.keys())}")
+        print(f"FILES data keys: {list(request.FILES.keys())}")
         try:
             species_id = request.POST.get('species')
             code_prefix = request.POST.get('code', '').strip()
-            height = request.POST.get('height', '')
+            planting_year = request.POST.get('planting_year', '').strip()
             address = request.POST.get('address', '')
             locations_json = request.POST.get('locations', '[]')
             statuses = request.POST.getlist('statuses')
             heights = request.POST.getlist('heights')
+            trunk_radiuses = request.POST.getlist('trunk_radius')
+            canopy_diameters = request.POST.getlist('canopy_diameter')
 
             locations = json.loads(locations_json)
 
-            if not all([species_id, code_prefix]) or len(locations) == 0:
-                messages.error(request, '❌ Vui lòng điền đầy đủ thông tin và chọn ít nhất 1 vị trí trên bản đồ!')
+            if not all([species_id, code_prefix, planting_year]) or len(locations) == 0:
+                messages.error(request, '❌ Vui lòng điền đầy đủ thông tin (Loài cây, Mã cây, Năm trồng) và chọn ít nhất 1 vị trí trên bản đồ!')
                 return redirect('tree_add')
 
             species = TreeSpecies.objects.get(id=species_id)
+            
+            # Handle district assignment
+            district_id = request.POST.get('district')
+            district = None
+            if district_id:
+                try:
+                    district = District.objects.get(id=district_id)
+                    # Validate user permissions - regular users can only assign to their districts
+                    if not request.user.is_staff:
+                        allowed_districts = District.objects.filter(
+                            managed_by_users__user=request.user
+                        ).distinct()
+                        if not allowed_districts.filter(id=district_id).exists():
+                            messages.error(request, '❌ Bạn không có quyền gán cây vào quận/huyện này!')
+                            return redirect('tree_add')
+                except District.DoesNotExist:
+                    messages.error(request, '❌ Quận/huyện không tồn tại!')
+                    return redirect('tree_add')
 
             # Tìm số thứ tự tiếp theo cho prefix
             existing = UrbanTree.objects.filter(code__istartswith=code_prefix).values_list('code', flat=True)
@@ -353,10 +697,32 @@ def tree_add_view(request):
                     tree_status = statuses[i] if i < len(statuses) else 'TOT'
                     if i < len(heights) and heights[i]:
                         tree_height = float(heights[i])
-                    elif height:
-                        tree_height = float(height)
                     else:
                         tree_height = 0.0
+                    
+                    # Parse optional measurement fields from each tree
+                    tree_trunk_radius = None
+                    if i < len(trunk_radiuses) and trunk_radiuses[i]:
+                        try:
+                            tree_trunk_radius = float(trunk_radiuses[i])
+                        except (ValueError, TypeError):
+                            tree_trunk_radius = None
+                    
+                    tree_canopy_diameter = None
+                    if i < len(canopy_diameters) and canopy_diameters[i]:
+                        try:
+                            tree_canopy_diameter = float(canopy_diameters[i])
+                        except (ValueError, TypeError):
+                            tree_canopy_diameter = None
+                    
+                    tree_planting_year = None
+                    if planting_year:
+                        try:
+                            tree_planting_year = int(planting_year)
+                        except (ValueError, TypeError):
+                            error_msg = f"Năm trồng cây không hợp lệ: {planting_year}"
+                            raise ValueError(error_msg)
+                    
                     tree = UrbanTree(
                         species=species,
                         code=code,
@@ -364,8 +730,17 @@ def tree_add_view(request):
                         status=tree_status,
                         latitude=float(loc['lat']),
                         longitude=float(loc['lng']),
-                        address=address
+                        address=address,
+                        district=district
                     )
+                    
+                    # Chỉ set measurement fields nếu model có hỗ trợ
+                    if hasattr(UrbanTree, 'trunk_radius'):
+                        tree.trunk_radius = tree_trunk_radius
+                    if hasattr(UrbanTree, 'canopy_diameter'):
+                        tree.canopy_diameter = tree_canopy_diameter
+                    if hasattr(UrbanTree, 'planting_year'):
+                        tree.planting_year = tree_planting_year
                     
                     # Lấy tất cả ảnh cho cây này từ input images_i
                     tree_images = request.FILES.getlist(f'images_{i}')
@@ -373,7 +748,37 @@ def tree_add_view(request):
                     if tree_images:
                         tree.image = tree_images[0]
                     
-                    tree.save()
+                    # Cố gắng save tree, nếu lỗi vì column không tồn tại thì try again chỉ với basic fields
+                    try:
+                        tree.save()
+                    except Exception as e:
+                        print(f"❌ Error saving tree {code}: {str(e)}")
+                        if 'does not exist' in str(e).lower() or 'unexpected keyword' in str(e).lower():
+                            # Columns/fields không tồn tại, save lại mà không dùng measurement fields
+                            tree = UrbanTree(
+                                species=species,
+                                code=code,
+                                height=tree_height,
+                                status=tree_status,
+                                latitude=float(loc['lat']),
+                                longitude=float(loc['lng']),
+                                address=address
+                            )
+                            if tree_images:
+                                tree.image = tree_images[0]
+                            tree.save()
+                        else:
+                            raise
+                    
+                    # Thêm chất lượng đất cho cây
+                    soil_quality_id = request.POST.get('soil_quality')
+                    if soil_quality_id:
+                        from .models import SoilQuality
+                        try:
+                            soil_quality = SoilQuality.objects.get(id=soil_quality_id)
+                            tree.soil_qualities.add(soil_quality)
+                        except SoilQuality.DoesNotExist:
+                            pass
                     
                     # Lưu tất cả ảnh cho cây này vào TreeImage
                     if tree_images:
@@ -435,6 +840,16 @@ def tree_add_view(request):
     species_list = TreeSpecies.objects.all()
     status_choices = UrbanTree._meta.get_field('status').choices
 
+    # Get allowed districts based on user permissions
+    if request.user.is_staff:
+        # Admin can see all districts
+        allowed_districts = District.objects.all()
+    else:
+        # Regular user can only see assigned districts
+        allowed_districts = District.objects.filter(
+            managed_by_users__user=request.user
+        ).distinct()
+
     # Pass existing trees for map display
     all_trees = UrbanTree.objects.all()
     tree_list_data = []
@@ -448,10 +863,16 @@ def tree_add_view(request):
         })
     existing_json = json.dumps(tree_list_data)
 
+    # Lấy danh sách chất lượng đất
+    from .models import SoilQuality
+    soil_qualities = SoilQuality.objects.all()
+
     return render(request, 'tree_add.html', {
         'species_list': species_list,
         'status_choices': status_choices,
         'existing_json': existing_json,
+        'soil_qualities': soil_qualities,
+        'districts': allowed_districts,
     })
 
 # ============ XÓA CÂY ============
@@ -497,10 +918,18 @@ def species_list_view(request):
     if trait_filter in trait_filters:
         species = species.filter(**{trait_filters[trait_filter]: True})
 
+    # Phân trang: 15 loài/trang
+    paginator = Paginator(species, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     return render(request, 'species_list.html', {
-        'species_list': species,
+        'page_obj': page_obj,
+        'species_list': page_obj.object_list,
+        'paginator': paginator,
         'query': query,
         'trait_filter': trait_filter,
+        'total_species': TreeSpecies.objects.count(),
     })
 
 
@@ -969,6 +1398,14 @@ def maintenance_list_view(request):
     grouped_recommendations = list(grouped.values())
     grouped_recommendations.sort(key=lambda g: (urgency_order.get(g['urgency'], 3), -g['max_overdue']))
 
+    # Lọc đề xuất theo search query (mã cây hoặc tên loài)
+    if query:
+        grouped_recommendations = [
+            g for g in grouped_recommendations
+            if query.lower() in g['tree'].code.lower() or 
+               query.lower() in g['tree'].species.name.lower()
+        ]
+
     # Thống kê đề xuất
     stats = {
         'total': len(grouped_recommendations),
@@ -1362,6 +1799,102 @@ def admin_users_view(request):
     return render(request, 'admin_users.html', context)
 
 
+# ============ ADMIN DISTRICT PERMISSIONS ============
+@login_required
+@admin_required
+def admin_district_permissions_view(request):
+    """Admin page to manage user-district permissions"""
+    from django.contrib.auth.models import User
+    
+    # Handle POST requests (add/remove permissions)
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        user_id = request.POST.get('user_id')
+        district_id = request.POST.get('district_id')
+        
+        try:
+            user = User.objects.get(id=user_id)
+            district = District.objects.get(id=district_id)
+            
+            if action == 'add':
+                umd, created = UserManagedDistrict.objects.get_or_create(
+                    user=user, district=district
+                )
+                if created:
+                    messages.success(request, f'✅ Gán quận/huyện "{district.name}" cho user "{user.username}" thành công')
+                    log_activity(request, 'ADD_DISTRICT_PERM', 'USER_DISTRICT', f'{user.username}-{district.name}', f'Gán quyền quận {district.name} cho {user.username}')
+                else:
+                    messages.info(request, f'ℹ️ User "{user.username}" đã được gán quận/huyện "{district.name}"')
+            
+            elif action == 'remove':
+                try:
+                    umd = UserManagedDistrict.objects.get(user=user, district=district)
+                    umd.delete()
+                    messages.success(request, f'✅ Xóa quyền quận/huyện "{district.name}" của user "{user.username}" thành công')
+                    log_activity(request, 'REMOVE_DISTRICT_PERM', 'USER_DISTRICT', f'{user.username}-{district.name}', f'Xóa quyền quận {district.name} của {user.username}')
+                except UserManagedDistrict.DoesNotExist:
+                    messages.warning(request, f'⚠️ User "{user.username}" không có quyền quản lý quận/huyện "{district.name}"')
+        
+        except User.DoesNotExist:
+            messages.error(request, '❌ User không tồn tại')
+        except District.DoesNotExist:
+            messages.error(request, '❌ Quận/huyện không tồn tại')
+        except Exception as e:
+            messages.error(request, f'❌ Lỗi: {str(e)}')
+        
+        return redirect('admin_district_permissions')
+    
+    # GET request - display the permission management page
+    # Tìm kiếm: filter theo username hoặc email
+    search_query = request.GET.get('q', '').strip()
+    
+    if search_query:
+        users_qs = User.objects.filter(
+            Q(username__icontains=search_query) | 
+            Q(email__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query)
+        ).filter(is_active=True).order_by('username')
+    else:
+        users_qs = User.objects.filter(is_active=True).order_by('username')
+    
+    districts = District.objects.all().order_by('name')
+    
+    # Phân trang: 10 users/trang
+    paginator = Paginator(users_qs, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Build user-district matrix for displayed page only
+    user_district_list = []
+    total_permissions = 0
+    
+    for user in page_obj.object_list:
+        user_districts = UserManagedDistrict.objects.filter(user=user).values_list('district_id', flat=True)
+        user_districts_set = set(user_districts)
+        total_permissions += len(user_districts_set)
+        
+        user_district_list.append({
+            'user': user,
+            'district_ids': user_districts_set,
+            'total': len(user_districts_set)
+        })
+    
+    context = {
+        'page_obj': page_obj,
+        'users': page_obj.object_list,
+        'districts': districts,
+        'user_district_list': user_district_list,
+        'paginator': paginator,
+        'total_users': User.objects.filter(is_active=True).count(),
+        'total_districts': len(districts),
+        'total_permissions': total_permissions,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'admin_permissions.html', context)
+
+
 # ============ ADMIN ACTIVITY LOGS ============
 @login_required
 @admin_required
@@ -1409,6 +1942,342 @@ def custom_404_view(request, exception=None):
 def custom_500_view(request):
     """Custom 500 error page handler."""
     return render(request, '500.html', status=500)
+
+
+# ============ IMPORT EXCEL/CSV ============
+@login_required
+@admin_required
+def import_maintenance_view(request):
+    """Import maintenance logs from Excel/CSV file"""
+    from .forms import MaintenanceImportForm, get_file_parser
+    
+    if request.method == 'POST':
+        form = MaintenanceImportForm(request.POST, request.FILES)
+        if form.is_valid():
+            file = request.FILES['file']
+            file_name = file.name
+            
+            # Chọn parser phù hợp
+            parser = get_file_parser(file_name)
+            if not parser:
+                messages.error(request, '❌ Định dạng file không được hỗ trợ!')
+                return redirect('import_maintenance')
+            
+            # Phân tích file
+            rows, error = parser(file)
+            if error:
+                messages.error(request, f'❌ Lỗi khi đọc file: {error}')
+                return redirect('import_maintenance')
+            
+            if not rows:
+                messages.error(request, '❌ File không có dữ liệu!')
+                return redirect('import_maintenance')
+            
+            # Xử lý từng dòng
+            success_count = 0
+            error_list = []
+            
+            for row_idx, row in enumerate(rows, 2):  # Bắt đầu từ dòng 2 (dòng 1 là header)
+                try:
+                    # Lấy dữ liệu từ file
+                    tree_code = str(row.get('Mã cây', '')).strip()
+                    date_str = str(row.get('Ngày', '')).strip()
+                    action = str(row.get('Công việc', '')).strip()
+                    performer = str(row.get('Người thực hiện', '')).strip()
+                    note = str(row.get('Ghi chú', '')).strip() if 'Ghi chú' in row else ''
+                    
+                    # Validation
+                    if not all([tree_code, date_str, action, performer]):
+                        error_list.append(f"Dòng {row_idx}: Thiếu dữ liệu bắt buộc (Mã cây, Ngày, Công việc, Người thực hiện)")
+                        continue
+                    
+                    # Tìm cây theo mã
+                    try:
+                        tree = UrbanTree.objects.get(code__iexact=tree_code)
+                    except UrbanTree.DoesNotExist:
+                        error_list.append(f"Dòng {row_idx}: Cây với mã '{tree_code}' không tồn tại!")
+                        continue
+                    
+                    # Kiểm tra hành động (action) có hợp lệ không
+                    action_choices = dict(MaintenanceLog._meta.get_field('action').choices)
+                    action_key = None
+                    
+                    # Thử match dựa vào key hoặc display name
+                    for key, display_name in action_choices.items():
+                        if action.upper() == key or action == display_name:
+                            action_key = key
+                            break
+                    
+                    if not action_key:
+                        error_list.append(f"Dòng {row_idx}: Hành động '{action}' không hợp lệ. Các hành động được phép: {', '.join(action_choices.values())}")
+                        continue
+                    
+                    # Phân tích ngày (dự kiến format: dd/mm/yyyy hoặc yyyy-mm-dd)
+                    try:
+                        # Thử định dạng dd/mm/yyyy
+                        if '/' in date_str:
+                            date_parts = date_str.split('/')
+                            if len(date_parts) == 3:
+                                day, month, year = int(date_parts[0]), int(date_parts[1]), int(date_parts[2])
+                                maintenance_date = date(year, month, day)
+                            else:
+                                raise ValueError("Định dạng ngày không hợp lệ")
+                        else:
+                            # Thử định dạng yyyy-mm-dd
+                            from datetime import datetime as dt
+                            maintenance_date = dt.strptime(date_str, '%Y-%m-%d').date()
+                    except Exception as date_error:
+                        error_list.append(f"Dòng {row_idx}: Ngày '{date_str}' không hợp lệ. Sử dụng định dạng dd/mm/yyyy hoặc yyyy-mm-dd")
+                        continue
+                    
+                    # Kiểm tra xem log đã tồn tại chưa
+                    if MaintenanceLog.objects.filter(
+                        tree=tree,
+                        date=maintenance_date,
+                        action=action_key,
+                        performer__iexact=performer
+                    ).exists():
+                        error_list.append(f"Dòng {row_idx}: Log này đã tồn tại (cùng cây, ngày, hành động, người thực hiện)")
+                        continue
+                    
+                    # Tạo MaintenanceLog
+                    log = MaintenanceLog(
+                        tree=tree,
+                        date=maintenance_date,
+                        action=action_key,
+                        performer=performer,
+                        note=note or ''
+                    )
+                    
+                    # Xử lý các fields tùy theo loại hành động
+                    if action_key == 'BON_PHAN' and 'Tên phân bón' in row:
+                        log.fertilizer_name = str(row.get('Tên phân bón', '')).strip()
+                    
+                    if action_key == 'PHUN_THUOC' and 'Tên thuốc' in row:
+                        log.pesticide_name = str(row.get('Tên thuốc', '')).strip()
+                    
+                    if action_key == 'TUOI_NUOC' and 'Lượng nước (lít)' in row:
+                        try:
+                            log.water_amount = float(row.get('Lượng nước (lít)', 0))
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    # Lưu log
+                    try:
+                        log.save()
+                        success_count += 1
+                    except Exception as save_error:
+                        if 'does not exist' in str(save_error).lower():
+                            # Nếu các fields tuy chọn không tồn tại, save lại mà không dùng chúng
+                            log = MaintenanceLog(
+                                tree=tree,
+                                date=maintenance_date,
+                                action=action_key,
+                                performer=performer,
+                                note=note or ''
+                            )
+                            log.save()
+                            success_count += 1
+                        else:
+                            error_list.append(f"Dòng {row_idx}: Lỗi khi lưu - {str(save_error)}")
+                    
+                    # Log activity
+                    log_activity(
+                        request,
+                        action_type='ADD_MAINTENANCE',
+                        entity_type='TREE',
+                        entity_code=tree_code,
+                        detail=f'Import chăm sóc từ file {file_name}',
+                    )
+                
+                except Exception as e:
+                    error_list.append(f"Dòng {row_idx}: Lỗi không mong đợi - {str(e)}")
+            
+            # Hiển thị kết quả
+            if success_count > 0:
+                messages.success(request, f'✅ Import thành công {success_count} bản ghi lịch sử chăm sóc!')
+            
+            if error_list:
+                for error_msg in error_list[:10]:  # Hiển thị tối đa 10 lỗi để tránh quá dài
+                    messages.warning(request, f"⚠️ {error_msg}")
+                if len(error_list) > 10:
+                    messages.warning(request, f"⚠️ ... và {len(error_list) - 10} lỗi khác")
+            
+            if success_count == 0:
+                messages.error(request, '❌ Không import được bản ghi nào!')
+            
+            return redirect('import_maintenance')
+    else:
+        form = MaintenanceImportForm()
+    
+    return render(request, 'import_maintenance.html', {
+        'form': form,
+        'action_choices': MaintenanceLog._meta.get_field('action').choices,
+    })
+
+
+@login_required
+@admin_required
+def import_trees_view(request):
+    """Import trees from Excel/CSV file"""
+    from .forms import TreeImportForm, get_file_parser
+    from .models import SoilQuality
+    
+    if request.method == 'POST':
+        form = TreeImportForm(request.POST, request.FILES)
+        if form.is_valid():
+            file = request.FILES['file']
+            file_name = file.name
+            
+            # Chọn parser phù hợp
+            parser = get_file_parser(file_name)
+            if not parser:
+                messages.error(request, '❌ Định dạng file không được hỗ trợ!')
+                return redirect('import_trees')
+            
+            # Phân tích file
+            rows, error = parser(file)
+            if error:
+                messages.error(request, f'❌ Lỗi khi đọc file: {error}')
+                return redirect('import_trees')
+            
+            if not rows:
+                messages.error(request, '❌ File không có dữ liệu!')
+                return redirect('import_trees')
+            
+            # Xử lý từng dòng
+            success_count = 0
+            error_list = []
+            
+            for row_idx, row in enumerate(rows, 2):  # Bắt đầu từ dòng 2
+                try:
+                    # Lấy dữ liệu
+                    code = str(row.get('Mã cây', '')).strip()
+                    species_name = str(row.get('Loài', '')).strip()
+                    height_str = str(row.get('Chiều cao (m)', '')).strip()
+                    status = str(row.get('Trạng thái', '')).strip()
+                    lat_str = str(row.get('Vĩ độ', '')).strip()
+                    lon_str = str(row.get('Kinh độ', '')).strip()
+                    address = str(row.get('Địa chỉ', '')).strip()
+                    
+                    # Validation
+                    if not all([code, species_name, height_str, status, lat_str, lon_str]):
+                        error_list.append(f"Dòng {row_idx}: Thiếu dữ liệu bắt buộc")
+                        continue
+                    
+                    # Tìm loài cây
+                    try:
+                        species = TreeSpecies.objects.get(name__iexact=species_name)
+                    except TreeSpecies.DoesNotExist:
+                        error_list.append(f"Dòng {row_idx}: Loài cây '{species_name}' không tồn tại!")
+                        continue
+                    
+                    # Kiểm tra mã cây đã tồn tại chưa
+                    if UrbanTree.objects.filter(code__iexact=code).exists():
+                        error_list.append(f"Dòng {row_idx}: Cây với mã '{code}' đã tồn tại!")
+                        continue
+                    
+                    # Kiểm tra trạng thái
+                    status_choices = dict(UrbanTree._meta.get_field('status').choices)
+                    status_key = None
+                    for key, display_name in status_choices.items():
+                        if status.upper() == key or status == display_name:
+                            status_key = key
+                            break
+                    
+                    if not status_key:
+                        error_list.append(f"Dòng {row_idx}: Trạng thái '{status}' không hợp lệ. Các trạng thái được phép: {', '.join(status_choices.values())}")
+                        continue
+                    
+                    # Phân tích số từ
+                    try:
+                        height = float(height_str)
+                        latitude = float(lat_str)
+                        longitude = float(lon_str)
+                    except ValueError:
+                        error_list.append(f"Dòng {row_idx}: Chiều cao, vĩ độ, kinh độ phải là số hợp lệ")
+                        continue
+                    
+                    # Tạo cây
+                    tree = UrbanTree(
+                        code=code,
+                        species=species,
+                        height=height,
+                        status=status_key,
+                        latitude=latitude,
+                        longitude=longitude,
+                        address=address or ''
+                    )
+                    
+                    # Xử lý các fields tùy chọn
+                    if hasattr(tree, 'trunk_radius') and 'Đường kính thân (cm)' in row:
+                        try:
+                            tree.trunk_radius = float(row.get('Đường kính thân (cm)', 0))
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    if hasattr(tree, 'canopy_diameter') and 'Diện tích vòm (m²)' in row:
+                        try:
+                            tree.canopy_diameter = float(row.get('Diện tích vòm (m²)', 0))
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    if hasattr(tree, 'planting_year') and 'Năm trồng' in row:
+                        try:
+                            tree.planting_year = int(row.get('Năm trồng', 0))
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    # Lưu cây
+                    try:
+                        tree.save()
+                    except Exception as save_error:
+                        if 'does not exist' in str(save_error).lower():
+                            tree = UrbanTree(
+                                code=code,
+                                species=species,
+                                height=height,
+                                status=status_key,
+                                latitude=latitude,
+                                longitude=longitude,
+                                address=address or ''
+                            )
+                            tree.save()
+                        else:
+                            raise
+                    
+                    # Log activity
+                    log_activity(
+                        request,
+                        action_type='ADD_TREE',
+                        entity_type='TREE',
+                        entity_code=code,
+                        detail=f'Import cây từ file {file_name}',
+                    )
+                    
+                    success_count += 1
+                
+                except Exception as e:
+                    error_list.append(f"Dòng {row_idx}: Lỗi không mong đợi - {str(e)}")
+            
+            # Hiển thị kết quả
+            if success_count > 0:
+                messages.success(request, f'✅ Import thành công {success_count} cây!')
+            
+            if error_list:
+                for error_msg in error_list[:10]:
+                    messages.warning(request, f"⚠️ {error_msg}")
+                if len(error_list) > 10:
+                    messages.warning(request, f"⚠️ ... và {len(error_list) - 10} lỗi khác")
+            
+            if success_count == 0:
+                messages.error(request, '❌ Không import được cây nào!')
+            
+            return redirect('import_trees')
+    else:
+        form = TreeImportForm()
+    
+    return render(request, 'import_trees.html', {'form': form})
 
 
 # ============ USER PROFILE PAGE ============
@@ -1499,6 +2368,14 @@ def user_profile_view(request):
         
         # Trees managed/viewed
         all_trees = UrbanTree.objects.all()
+        # Filter by user's allowed districts if not staff
+        if not user.is_staff:
+            allowed_districts = District.objects.filter(
+                managed_by_users__user=user
+            ).distinct()
+            all_trees = all_trees.filter(
+                Q(district__in=allowed_districts) | Q(district__isnull=True)
+            )
         context['user_trees_count'] = all_trees.count()
     except Exception:
         context['user_activity_count'] = 0

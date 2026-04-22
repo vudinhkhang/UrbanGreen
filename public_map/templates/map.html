@@ -453,7 +453,7 @@
                                 <option value="">-- Chọn loại công việc --</option>
                                 <option value="CAT_TIA">✂️ Cắt tỉa cành</option>
                                 <option value="BON_PHAN">🌱 Bón phân</option>
-                                <option value="PHUN_THUOC">🚿 Phun thuốc trừ sâu</option>
+                                <option value="PHUN_THUOC">🚿 Phun thuốc</option>
                                 <option value="KIEM_TRA">🔍 Kiểm tra định kỳ</option>
                                 <option value="TUOI_NUOC">💧 Tưới nước</option>
                             </select>
@@ -1101,12 +1101,22 @@
             infoDiv.innerHTML = '<div class="text-muted small">Bán kính: ' + radius + 'm | Không có cây nào</div>';
         } else {
             var html = '<div class="fw-bold mb-1 small">Tìm thấy ' + found.length + ' cây (bán kính ' + radius + 'm):</div>';
-            found.slice(0, 8).forEach(function(f) {
+            var displayLimit = 8;
+            found.slice(0, displayLimit).forEach(function(f, idx) {
                 var statusLabel = f.tree.status === 'SAU_BENH' ? '🟡' : f.tree.status === 'NGUY_HIEM' ? '🔴' : '🟢';
-                html += '<div style="font-size:.75rem;">' + statusLabel + ' ' + f.tree.code + ' — ' + f.dist + 'm</div>';
+                // Make each tree clickable with a unique ID
+                html += '<div style="font-size:.75rem;padding:3px 4px;margin:2px 0;background:#f0f9ff;border-radius:3px;cursor:pointer;border-left:2px solid #3498db;" '
+                    + 'class="radius-tree-item" data-tree-idx="' + idx + '" '
+                    + 'onmouseover="this.style.background=\'#e0f2fe\'" '
+                    + 'onmouseout="this.style.background=\'#f0f9ff\'" '
+                    + 'onclick="navigateToTreeInRadius(' + idx + ')">'
+                    + statusLabel + ' <strong>' + f.tree.code + '</strong> (' + f.dist + 'm)'
+                    + '</div>';
             });
-            if (found.length > 8) html += '<div class="text-muted small">... và ' + (found.length - 8) + ' cây khác</div>';
+            if (found.length > displayLimit) html += '<div class="text-muted small pt-1">... và ' + (found.length - displayLimit) + ' cây khác</div>';
             infoDiv.innerHTML = html;
+            // Store the found trees globally for navigation
+            window.radiusFoundTrees = found;
         }
         infoDiv.classList.add('active');
         document.getElementById('btn-clear-radius').style.display = 'block';
@@ -1130,6 +1140,57 @@
         document.getElementById('radius-info').innerHTML = '';
         document.getElementById('btn-clear-radius').style.display = 'none';
         document.getElementById('legend-radius').style.display = 'none';
+    }
+
+    // Navigate to a tree in the radius search results
+    function navigateToTreeInRadius(idx) {
+        if (!window.radiusFoundTrees || !window.radiusFoundTrees[idx]) return;
+        
+        var foundTree = window.radiusFoundTrees[idx];
+        var tree = foundTree.tree;
+        
+        // Center map on the tree
+        map.setView([tree.lat, tree.long], 17);
+        
+        // Find and highlight the tree marker
+        var highlightedMarker = null;
+        for (var i = 0; i < radiusMarkers.length; i++) {
+            var marker = radiusMarkers[i];
+            var markerLat = marker.getLatLng().lat;
+            var markerLng = marker.getLatLng().lng;
+            
+            // Check if this marker matches the tree coordinates (with small tolerance)
+            if (Math.abs(markerLat - tree.lat) < 0.0001 && Math.abs(markerLng - tree.long) < 0.0001) {
+                // Skip the center marker (radius 6)
+                if (marker._radius !== 6) {
+                    highlightedMarker = marker;
+                    break;
+                }
+            }
+        }
+        
+        // Highlight the tree marker
+        if (highlightedMarker) {
+            highlightedMarker.setStyle({ color: '#f39c12', fillColor: '#f39c12', radius: 10 });
+            highlightedMarker.openPopup();
+            
+            // Reset highlight after 2 seconds
+            setTimeout(function() {
+                highlightedMarker.setStyle({ color: '#3498db', fillColor: '#3498db', radius: 7 });
+            }, 2000);
+        }
+        
+        // Highlight the list item
+        document.querySelectorAll('.radius-tree-item').forEach(function(el) {
+            el.style.background = '#f0f9ff';
+            el.style.borderLeft = '2px solid #3498db';
+        });
+        var listItems = document.querySelectorAll('.radius-tree-item[data-tree-idx="' + idx + '"]');
+        if (listItems.length > 0) {
+            listItems[0].style.background = '#fde047';
+            listItems[0].style.borderLeft = '3px solid #f39c12';
+            listItems[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
     }
 
     // Auto-update search when radius value changes
@@ -1409,7 +1470,7 @@
         var actionLabel = {
             'CAT_TIA': '✂️ Cắt tỉa cành',
             'BON_PHAN': '🌱 Bón phân',
-            'PHUN_THUOC': '🚿 Phun thuốc trừ sâu',
+            'PHUN_THUOC': '🚿 Phun thuốc',
             'KIEM_TRA': '🔍 Kiểm tra định kỳ',
             'TUOI_NUOC': '💧 Tưới nước'
         }[action] || action;

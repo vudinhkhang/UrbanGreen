@@ -46,11 +46,29 @@
 
                         <!-- Row 2 -->
                         <div class="row">
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
                                 <label for="height" class="form-label"><strong>Chiều cao (m) <span class="text-danger">*</span></strong></label>
                                 <input type="number" class="form-control" id="height" name="height" step="0.1" value="{{ tree.height }}" required>
                             </div>
-                            <div class="col-md-4 mb-3">
+                            <div class="col-md-3 mb-3">
+                                <label for="trunk_radius" class="form-label"><strong>Bán kính thân (cm)</strong></label>
+                                <input type="number" class="form-control" id="trunk_radius" name="trunk_radius" step="0.1" value="{{ tree.trunk_radius|default:'' }}">
+                                <small class="text-muted">Bán kính thân cây tính bằng cm</small>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="canopy_diameter" class="form-label"><strong>Đường kính vòm (m)</strong></label>
+                                <input type="number" class="form-control" id="canopy_diameter" name="canopy_diameter" step="0.1" value="{{ tree.canopy_diameter|default:'' }}">
+                                <small class="text-muted">Độ che phủ vòm cây tính bằng mét</small>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="planting_year" class="form-label"><strong>Năm trồng</strong></label>
+                                <input type="number" class="form-control" id="planting_year" name="planting_year" value="{{ tree.planting_year|default:'' }}" min="1900" max="2026">
+                            </div>
+                        </div>
+
+                        <!-- Row 2.5: Status & Address -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
                                 <label for="status" class="form-label"><strong>Trạng thái <span class="text-danger">*</span></strong></label>
                                 <select class="form-select" id="status" name="status" required>
                                     {% for code, label in status_choices %}
@@ -58,8 +76,8 @@
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="address" class="form-label">Địa chỉ</label>
+                            <div class="col-md-6 mb-3">
+                                <label for="address" class="form-label">Địa chỉ chi tiết</label>
                                 <input type="text" class="form-control" id="address" name="address" value="{{ tree.address }}">
                             </div>
                         </div>

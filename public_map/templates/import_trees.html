@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Nhập Danh Sách Cây - UrbanGreen{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h3>
+                        <i class="fas fa-file-import"></i> Nhập Danh Sách Cây
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <!-- Hướng dẫn -->
+                    <div class="alert alert-info border-left-4" role="alert">
+                        <h5><i class="fas fa-info-circle"></i> Hướng Dẫn Nhập File</h5>
+                        <p class="mb-2"><strong>Định dạng file hỗ trợ:</strong> .xlsx, .csv, .xls</p>
+                        <p class="mb-2"><strong>Cột bắt buộc:</strong></p>
+                        <ul class="mb-2">
+                            <li><code>Mã cây</code> - Mã định danh của cây (phải là duy nhất)</li>
+                            <li><code>Loài</code> - Tên loài cây (phải tồn tại trong hệ thống)</li>
+                            <li><code>Chiều cao (m)</code> - Chiều cao của cây (số thực)</li>
+                            <li><code>Trạng thái</code> - Trạng thái cây:
+                                <ul>
+                                    <li><strong>Tốt</strong> (TOT)</li>
+                                    <li><strong>Sâu bệnh</strong> (SAU_BENH)</li>
+                                    <li><strong>Nguy hiểm</strong> (NGUY_HIEM)</li>
+                                </ul>
+                            </li>
+                            <li><code>Vĩ độ</code> - Tọa độ vĩ độ (latitude, số thực)</li>
+                            <li><code>Kinh độ</code> - Tọa độ kinh độ (longitude, số thực)</li>
+                        </ul>
+                        
+                        <p class="mb-2"><strong>Cột tùy chọn:</strong></p>
+                        <ul class="mb-2">
+                            <li><code>Địa chỉ</code> - Địa chỉ cây</li>
+                            <li><code>Đường kính thân (cm)</code> - Đường kính thân cây</li>
+                            <li><code>Diện tích vòm (m²)</code> - Diện tích vòm che phủ</li>
+                            <li><code>Năm trồng</code> - Năm cây được trồng</li>
+                        </ul>
+
+                        <p class="mb-0">
+                            <strong>Mẹo:</strong> Bạn có thể tải file mẫu bằng cách 
+                            <a href="{% url 'export_trees' %}"><strong>xuất dữ liệu hiện tại</strong></a>
+                            rồi sửa lại.
+                        </p>
+                    </div>
+
+                    <!-- Form nhập file -->
+                    <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="form-group mb-3">
+                            <label for="fileInput" class="form-label">
+                                <i class="fas fa-file"></i> Chọn File
+                            </label>
+                            <div class="input-group">
+                                <input 
+                                    type="file" 
+                                    class="form-control {% if form.file.errors %}is-invalid{% endif %}" 
+                                    id="fileInput"
+                                    name="file" 
+                                    accept=".xlsx,.csv,.xls"
+                                    required
+                                >
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="fas fa-upload"></i> Nhập Dữ Liệu
+                                </button>
+                            </div>
+                            {% if form.file.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.file.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                Tối đa 5MB. Định dạng: .xlsx, .csv, .xls
+                            </small>
+                        </div>
+                    </form>
+
+                    <!-- Bảng mẫu dữ liệu -->
+                    <div class="mt-4">
+                        <h5><i class="fas fa-table"></i> Mẫu Dữ Liệu</h5>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Mã cây</th>
+                                        <th>Loài</th>
+                                        <th>Chiều cao (m)</th>
+                                        <th>Trạng thái</th>
+                                        <th>Vĩ độ</th>
+                                        <th>Kinh độ</th>
+                                        <th>Địa chỉ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="table-secondary">
+                                        <td><code>T001</code></td>
+                                        <td>Xà cừ</td>
+                                        <td>8.5</td>
+                                        <td>Tốt</td>
+                                        <td>21.0285</td>
+                                        <td>105.8542</td>
+                                        <td>Phố Huế, Hà Nội</td>
+                                    </tr>
+                                    <tr class="table-secondary">
+                                        <td><code>T002</code></td>
+                                        <td>Cây me</td>
+                                        <td>10.2</td>
+                                        <td>Sâu bệnh</td>
+                                        <td>21.0300</td>
+                                        <td>105.8550</td>
+                                        <td>Đại học Quốc gia</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Lưu ý quan trọng -->
+                    <div class="alert alert-warning mt-4" role="alert">
+                        <h5><i class="fas fa-exclamation-triangle"></i> Lưu Ý Quan Trọng</h5>
+                        <ul class="mb-0">
+                            <li>Mã cây phải là duy nhất, không được trùng với cây đã tồn tại</li>
+                            <li>Loài cây phải tồn tại trong danh sách loài của hệ thống</li>
+                            <li>Tọa độ (vĩ độ/kinh độ) là các số thực, ví dụ: 21.0285</li>
+                            <li>Trạng thái chỉ được accept: "Tốt", "Sâu bệnh", "Nguy hiểm" (hoặc: TOT, SAU_BENH, NGUY_HIEM)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Liên kết quay lại -->
+            <div class="text-center mt-3">
+                <a href="{% url 'tree_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Quay lại
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .border-left-4 {
+        border-left: 4px solid #17a2b8 !important;
+    }
+    .alert-info {
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+    }
+</style>
+
+<script>
+    // Hiển thị tên file khi người dùng chọn
+    document.getElementById('fileInput').addEventListener('change', function() {
+        if (this.files.length > 0) {
+            console.log('File selected: ' + this.files[0].name);
+        }
+    });
+
+    // Validate form trước khi submit
+    (function() {
+        'use strict';
+        window.addEventListener('load', function() {
+            var forms = document.getElementsByClassName('needs-validation');
+            var validation = Array.prototype.filter.call(forms, function(form) {
+                form.addEventListener('submit', function(event) {
+                    if (form.checkValidity() === false) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+        }, false);
+    })();
+</script>
+{% endblock %}

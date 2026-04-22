@@ -33,6 +33,10 @@
                 <i class="fas fa-users"></i>
                 <span>Quản lý người dùng</span>
             </a>
+            <a href="{% url 'admin_district_permissions' %}" class="menu-item {% block menu_permissions %}{% endblock %}">
+                <i class="fas fa-map-pin"></i>
+                <span>Phân quyền quận/huyện</span>
+            </a>
             <a href="{% url 'species_list' %}" class="menu-item {% block menu_species %}{% endblock %}">
                 <i class="fas fa-leaf"></i>
                 <span>Quản lý loài cây</span>

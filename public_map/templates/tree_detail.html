@@ -3,6 +3,17 @@
 {% block title %}Chi tiết Cây {{ tree.code }} - Urban Green GIS{% endblock %}
 
 {% block content %}
+<style>
+    .measurement-badge {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 4px 0;
+    }
+    .maintenance-history-details {
+        line-height: 1.6;
+    }
+</style>
 <div class="container py-4">
     <div class="page-header">
         <div>
@@ -99,9 +110,13 @@
                         <h3 class="card-title">{{ tree.species.name }}</h3>
                         <p class="text-muted">Mã số: {{ tree.code }}</p>
                         <ul class="list-group list-group-flush">
-                            <li class="list-group-item"><strong>Chiều cao:</strong> {{ tree.height }}m</li>
+                            <li class="list-group-item"><strong>Chiều cao:</strong> {% if tree.height %}{{ tree.height }}m{% else %}<span class="text-muted">Chưa cập nhật</span>{% endif %}</li>
+                            <li class="list-group-item"><strong>Đường kính thân cây:</strong> {% if tree.trunk_radius %}{{ tree.trunk_radius }}cm{% else %}<span class="text-muted">Chưa cập nhật</span>{% endif %}</li>
+                            <li class="list-group-item"><strong>Diện tích vòm che phủ:</strong> {% if tree.canopy_diameter %}{{ tree.canopy_diameter }}m²{% else %}<span class="text-muted">Chưa cập nhật</span>{% endif %}</li>
+                            <li class="list-group-item"><strong>Năm trồng cây:</strong> {% if tree.planting_year %}{{ tree.planting_year }}{% else %}<span class="text-muted">Chưa cập nhật</span>{% endif %}</li>
                             <li class="list-group-item"><strong>Trạng thái:</strong> {{ tree.get_status_display }}</li>
                             <li class="list-group-item"><strong>Địa chỉ:</strong> {{ tree.address }}</li>
+                            <li class="list-group-item"><strong>Quận/Huyện:</strong> {% if tree.district %}{{ tree.district.name }}{% else %}<span class="text-muted">Chưa cập nhật</span>{% endif %}</li>
                             <li class="list-group-item"><strong>Đặc tính:</strong> {{ tree.species.characteristics }}</li>
                             <li class="list-group-item">
                                 <strong>Cảnh báo:</strong>
@@ -116,74 +131,21 @@
                                     {% endif %}
                                 </div>
                             </li>
+                            <li class="list-group-item">
+                                <strong>🌱 Chất lượng đất:</strong>
+                                <div class="mt-1" style="display:flex;flex-wrap:wrap;gap:4px;">
+                                    {% if soil_qualities %}
+                                        {% for soil in soil_qualities %}
+                                        <span class="badge bg-{% if soil.growth_impact == 'slows_growth' %}warning{% elif soil.growth_impact == 'accelerated' %}success{% else %}info{% endif %} text-{% if soil.growth_impact == 'slows_growth' %}dark{% else %}white{% endif %}">
+                                            {{ soil.get_soil_type_display }}
+                                        </span>
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-muted">Chưa cập nhật</span>
+                                    {% endif %}
+                                </div>
+                            </li>
                         </ul>
-                    </div>
-                </div>
-
-                <!-- Form Chỉnh sửa thông tin cây -->
-                <div class="card mt-3">
-                    <div class="card-header bg-warning">
-                        <h5 class="mb-0">🔧 Chỉnh sửa Thông tin Cây</h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="post" enctype="multipart/form-data">
-                            {% csrf_token %}
-                            <input type="hidden" name="edit_tree" value="1">
-
-                            <!-- Row 1 -->
-                            <!-- <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="species" class="form-label"><strong>Loài Cây <span class="text-danger">*</span></strong></label>
-                                    <select class="form-select" id="species" name="species" required>
-                                        {% for species in species_list %}
-                                        <option value="{{ species.id }}" {% if species.id == tree.species.id %}selected{% endif %}>{{ species.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="code" class="form-label"><strong>Mã Cây <span class="text-danger">*</span></strong></label>
-                                    <input type="text" class="form-control" id="code" name="code" value="{{ tree.code }}" required>
-                                </div>
-                            </div> -->
-
-                            <!-- Row 2 -->
-                            <!-- <div class="row"> -->
-                                <div class="col-md-4 mb-3">
-                                    <label for="height" class="form-label"><strong>Chiều cao (m) <span class="text-danger">*</span></strong></label>
-                                    <input type="number" class="form-control" id="height" name="height" step="0.1" value="{{ tree.height }}" required>
-                                </div>
-                                <!-- <div class="col-md-4 mb-3">
-                                    <label for="status" class="form-label"><strong>Trạng thái <span class="text-danger">*</span></strong></label>
-                                    <select class="form-select" id="status" name="status" required>
-                                        {% for code, label in status_choices %}
-                                        <option value="{{ code }}" {% if code == tree.status %}selected{% endif %}>{{ label }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-md-4 mb-3">
-                                    <label for="address" class="form-label">Địa chỉ</label>
-                                    <input type="text" class="form-control" id="address" name="address" value="{{ tree.address }}">
-                                </div>
-                            </div> -->
-
-                            <!-- Row 3: Tọa độ GIS -->
-                            <!-- <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label for="latitude" class="form-label"><strong>Vĩ độ (Y) <span class="text-danger">*</span></strong></label>
-                                    <input type="number" class="form-control" id="latitude" name="latitude" step="0.000001" value="{{ tree.latitude }}" required>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="longitude" class="form-label"><strong>Kinh độ (X) <span class="text-danger">*</span></strong></label>
-                                    <input type="number" class="form-control" id="longitude" name="longitude" step="0.000001" value="{{ tree.longitude }}" required>
-                                </div>
-                            </div> -->
-
-                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
-                                <button type="submit" class="btn btn-warning btn-lg">
-                                    <i class="fas fa-check"></i> Cập nhật
-                                </button>
-                            </div>
-                        </form>
                     </div>
                 </div>
 
@@ -256,30 +218,112 @@
             <!-- Cột bên phải: Lịch sử chăm sóc & Form thêm mới -->
             <div class="col-md-7">
                 <h3>📜 Lịch sử Chăm sóc & Bảo trì</h3>
-                <table class="table table-striped table-hover mt-3">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Ngày</th>
-                            <th>Công việc</th>
-                            <th>Người làm</th>
-                            <th>Kết quả</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for log in logs %}
-                        <tr>
-                            <td>{{ log.date|date:"d/m/Y" }}</td>
-                            <td><span class="badge bg-info">{{ log.get_action_display }}</span></td>
-                            <td>{{ log.performer }}</td>
-                            <td><small>{{ log.note }}</small></td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" class="text-center text-muted">Chưa có lịch sử chăm sóc nào.</td>
-                        </tr>
+                
+                <!-- Section Chăm sóc đề xuất -->
+                {% if suggested_maintenance %}
+                <div class="alert alert-info mt-3" style="border-left: 4px solid #0dcaf0;">
+                    <h5 style="color: #0c5460; margin-bottom: 12px;">💡 Chăm sóc Đề xuất</h5>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        {% for suggestion in suggested_maintenance %}
+                        <div style="padding: 10px; background-color: {% if suggestion.priority == 'critical' %}#f8d7da{% elif suggestion.priority == 'warning' %}#fff3cd{% else %}#d1ecf1{% endif %}; border-radius: 4px; border-left: 3px solid {% if suggestion.priority == 'critical' %}#dc3545{% elif suggestion.priority == 'warning' %}#ffc107{% else %}#0dcaf0{% endif %};">
+                            <div style="font-weight: 600; color: {% if suggestion.priority == 'critical' %}#721c24{% elif suggestion.priority == 'warning' %}#856404{% else %}#0c5460{% endif %};">
+                                <span style="font-size: 1.2em; margin-right: 8px;">{{ suggestion.icon }}</span>{{ suggestion.title }}
+                            </div>
+                            <div style="color: {% if suggestion.priority == 'critical' %}#721c24{% elif suggestion.priority == 'warning' %}#856404{% else %}#0c5460{% endif %}; font-size: 0.95em; margin-top: 4px;">
+                                {{ suggestion.description }}
+                            </div>
+                        </div>
                         {% endfor %}
-                    </tbody>
-                </table>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover mt-3" style="font-size: 0.9rem;">
+                        <thead class="table-dark">
+                            <tr>
+                                <th style="width: 15%">Ngày</th>
+                                <th style="width: 20%">Công việc</th>
+                                <th style="width: 15%">Người làm</th>
+                                <th style="width: 50%">Chi tiết</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in logs %}
+                            <tr>
+                                <td>{{ log.date|date:"d/m/Y" }}</td>
+                                <td><span class="badge bg-info">{{ log.get_action_display }}</span></td>
+                                <td>{{ log.performer }}</td>
+                                <td class="maintenance-history-details">
+                                    <div style="line-height: 1.8;">
+                                        {% if log.action == 'BON_PHAN' %}
+                                            <div>
+                                                {% if log.fertilizer_name %}
+                                                    <span class="badge bg-success">🌿 Bón phân: <strong>{{ log.fertilizer_name }}</strong></span>
+                                                {% else %}
+                                                    <span class="badge bg-success">🌿 Bón phân</span>
+                                                {% endif %}
+                                            </div>
+                                        {% elif log.action == 'PHUN_THUOC' %}
+                                            <div>
+                                                {% if log.pesticide_name %}
+                                                    <span class="badge bg-warning text-dark">💊 Phun thuốc: <strong>{{ log.pesticide_name }}</strong></span>
+                                                {% else %}
+                                                    <span class="badge bg-warning text-dark">💊 Phun thuốc</span>
+                                                {% endif %}
+                                            </div>
+                                        {% elif log.action == 'TUOI_NUOC' %}
+                                            <div>
+                                                {% if log.water_amount %}
+                                                    <span class="badge bg-primary">💧 Tưới nước: <strong>{{ log.water_amount }}</strong> lít</span>
+                                                {% else %}
+                                                    <span class="badge bg-primary">💧 Tưới nước</span>
+                                                {% endif %}
+                                            </div>
+                                        {% elif log.action == 'CAT_TIA' %}
+                                            <div>
+                                                <span class="badge bg-secondary">✂️ Cắt tỉa cành</span>
+                                                {% if log.measurement_canopy_diameter %}
+                                                    <div style="margin-top: 6px;">
+                                                        <strong>Diện tích vòm che phủ:</strong> <span style="color: #6c757d; font-weight: bold;">{{ log.measurement_canopy_diameter }} m²</span>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        {% elif log.action == 'KIEM_TRA' %}
+                                            <div>
+                                                <span class="badge bg-info">🩺 Kiểm tra định kỳ</span>
+                                                <div style="margin-top: 6px;">
+                                                    {% if log.measurement_height %}
+                                                        <div><strong>Chiều cao:</strong> <span style="color: #0dcaf0; font-weight: bold;">{{ log.measurement_height }} m</span></div>
+                                                    {% endif %}
+                                                    {% if log.measurement_trunk_radius %}
+                                                        <div><strong>Đường kính thân cây:</strong> <span style="color: #0dcaf0; font-weight: bold;">{{ log.measurement_trunk_radius }} cm</span></div>
+                                                    {% endif %}
+                                                    {% if log.measurement_canopy_diameter %}
+                                                        <div><strong>Diện tích vòm:</strong> <span style="color: #0dcaf0; font-weight: bold;">{{ log.measurement_canopy_diameter }} m²</span></div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <span class="badge bg-dark">{{ log.get_action_display }}</span>
+                                        {% endif %}
+                                        {% if log.note %}
+                                            <div style="margin-top: 10px; padding: 8px; background-color: #f8f9fa; border-left: 3px solid #6c757d; border-radius: 3px;">
+                                                <strong style="font-size: 0.95em;">Chi tiết thay đổi:</strong><br>
+                                                <span style="color: #495057;">{{ log.note }}</span>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">Chưa có lịch sử chăm sóc nào.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
 
                 <!-- Form Thêm Lịch sử Chăm sóc -->
                 <div class="card mt-4">
@@ -320,8 +364,56 @@
                                 <small class="text-muted">Chọn nếu muốn thay đổi trạng thái sau chăm sóc</small>
                             </div>
 
+                            <!-- Trường tùy theo loại công việc -->
+                            <!-- Cắt tỉa cành -->
+                            <div class="mb-3" id="pruning-group" style="display:none;">
+                                <label class="form-label"><strong><i class="fas fa-tree"></i> Diện tích vòm che phủ (m²)</strong></label>
+                                <input type="number" class="form-control" id="measurement_canopy_diameter_pruning" name="measurement_canopy_diameter" placeholder="VD: 50.0" step="0.1" value="{{ tree.canopy_diameter|default:'' }}">
+                                <small class="text-muted">Giá trị hiện tại: <strong>{{ tree.canopy_diameter|default:'Chưa cập nhật' }}</strong> m²</small>
+                            </div>
+
+                            <!-- Bón phân -->
+                            <div class="mb-3" id="fertilizer-group" style="display:none;">
+                                <label for="fertilizer_name" class="form-label"><strong><i class="fas fa-leaf"></i> Tên phân bón</strong></label>
+                                <input type="text" class="form-control" id="fertilizer_name" name="fertilizer_name" placeholder="VD: Phân NPK, Phân lá, Phân bò, v.v.">
+                            </div>
+
+                            <!-- Phun thuốc -->
+                            <div class="mb-3" id="pesticide-group" style="display:none;">
+                                <label for="pesticide_name" class="form-label"><strong><i class="fas fa-spray-can"></i> Tên thuốc phun</strong></label>
+                                <input type="text" class="form-control" id="pesticide_name" name="pesticide_name" placeholder="VD: Thuốc trừ sâu, Thuốc nấm, Thuốc kiến, v.v.">
+                            </div>
+
+                            <!-- Tưới nước -->
+                            <div class="mb-3" id="water-group" style="display:none;">
+                                <label for="water_amount" class="form-label"><strong><i class="fas fa-water"></i> Lượng nước tưới (lít)</strong></label>
+                                <input type="number" class="form-control" id="water_amount" name="water_amount" placeholder="VD: 50" step="0.1">
+                            </div>
+
+                            <!-- Kiểm tra định kỳ -->
+                            <div class="mb-3" id="measurement-group" style="display:none;">
+                                <label class="form-label"><strong><i class="fas fa-stethoscope"></i> Cập nhật kích thước cây khi kiểm tra</strong></label>
+                                <div class="row">
+                                    <div class="col-md-6 mb-2">
+                                        <label for="measurement_height" class="form-label">Chiều cao (m)</label>
+                                        <input type="number" class="form-control" id="measurement_height" name="measurement_height" placeholder="VD: 5.5" step="0.1" value="{{ tree.height|default:'' }}">
+                                        <small class="text-muted">Hiện tại: <strong>{{ tree.height|default:'Chưa cập nhật' }}</strong> m</small>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <label for="measurement_trunk_radius" class="form-label">Đường kính thân (cm)</label>
+                                        <input type="number" class="form-control" id="measurement_trunk_radius" name="measurement_trunk_radius" placeholder="VD: 15.5" step="0.1" value="{{ tree.trunk_radius|default:'' }}">
+                                        <small class="text-muted">Hiện tại: <strong>{{ tree.trunk_radius|default:'Chưa cập nhật' }}</strong> cm</small>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <label for="measurement_canopy_diameter" class="form-label">Diện tích vòm (m²)</label>
+                                    <input type="number" class="form-control" id="measurement_canopy_diameter" name="measurement_canopy_diameter" placeholder="VD: 50.0" step="0.1" value="{{ tree.canopy_diameter|default:'' }}">
+                                    <small class="text-muted">Hiện tại: <strong>{{ tree.canopy_diameter|default:'Chưa cập nhật' }}</strong> m²</small>
+                                </div>
+                            </div>
+
                             <div class="mb-3">
-                                <label for="note" class="form-label">Ghi chú / Kết quả:</label>
+                                <label for="note" class="form-label"><strong><i class="fas fa-clipboard"></i> Ghi chú / Kết quả</strong></label>
                                 <textarea class="form-control" id="note" name="note" rows="3" placeholder="Mô tả chi tiết công việc (tuỳ chọn)"></textarea>
                             </div>
 
@@ -563,6 +655,43 @@
                 alert('❌ Lỗi khi xóa ảnh: ' + err);
             });
         }
+
+        // Handle conditional fields based on maintenance action
+        function updateMaintenanceFields() {
+            const action = document.getElementById('action').value;
+            const pruningGroup = document.getElementById('pruning-group');
+            const fertilizerGroup = document.getElementById('fertilizer-group');
+            const pesticideGroup = document.getElementById('pesticide-group');
+            const waterGroup = document.getElementById('water-group');
+            const measurementGroup = document.getElementById('measurement-group');
+            
+            // Hide all conditional fields
+            pruningGroup.style.display = 'none';
+            fertilizerGroup.style.display = 'none';
+            pesticideGroup.style.display = 'none';
+            waterGroup.style.display = 'none';
+            measurementGroup.style.display = 'none';
+            
+            // Show relevant fields based on action
+            switch(action) {
+                case 'CAT_TIA':
+                    pruningGroup.style.display = 'block';
+                    break;
+                case 'BON_PHAN':
+                    fertilizerGroup.style.display = 'block';
+                    break;
+                case 'PHUN_THUOC':
+                    pesticideGroup.style.display = 'block';
+                    break;
+                case 'TUOI_NUOC':
+                    waterGroup.style.display = 'block';
+                    break;
+                case 'KIEM_TRA':
+                    measurementGroup.style.display = 'block';
+                    break;
+            }
+        }
+
         // Initialize gallery after DOM is fully loaded
         document.addEventListener('DOMContentLoaded', function() {
             // Wait a bit for images to start loading
@@ -574,6 +703,12 @@
                 img.addEventListener('load', initializeGallery);
                 img.addEventListener('error', initializeGallery);
             });
+            
+            // Add event listener for action dropdown
+            const actionSelect = document.getElementById('action');
+            if (actionSelect) {
+                actionSelect.addEventListener('change', updateMaintenanceFields);
+            }
         });
     </script>
 {% endblock %}

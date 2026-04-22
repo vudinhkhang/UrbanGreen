@@ -1,0 +1,562 @@
+{% extends 'admin_base.html' %}
+{% load static %}
+
+{% block title %}Phân quyền Quận/Huyện - UrbanGreen{% endblock %}
+{% block menu_permissions %}active{% endblock %}
+{% block admin_page_title %}Phân Quyền Quận/Huyện{% endblock %}
+
+{% block admin_extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin_users.css' %}">
+<style>
+    .permissions-stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-card {
+        background: #fff;
+        border: 1px solid #e8eef5;
+        border-radius: 12px;
+        padding: 16px;
+        text-align: center;
+    }
+    
+    .stat-card p {
+        margin: 0 0 8px;
+        color: #70869c;
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+    
+    .stat-card h3 {
+        margin: 0;
+        color: #1f3348;
+        font-size: 1.8rem;
+    }
+    
+    .permissions-toolbar {
+        background: #fff;
+        border: 1px solid #e8eef5;
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 20px;
+    }
+    
+    .permissions-toolbar form {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        gap: 10px;
+    }
+
+    .permissions-table-wrapper {
+        background: #fff;
+        border: 1px solid #e8eef5;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .permissions-table {
+        width: 100%;
+        margin: 0;
+        border-collapse: collapse;
+    }
+    
+    .permissions-table thead {
+        background: #f8f9fa;
+        border-bottom: 2px solid #e8eef5;
+    }
+    
+    .permissions-table th {
+        padding: 12px 16px;
+        text-align: left;
+        color: #70869c;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .permissions-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #e8eef5;
+    }
+    
+    .permissions-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .permissions-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .user-avatar {
+        width: 36px;
+        height: 36px;
+        background: #1abc9c;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .user-details {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .user-name {
+        font-weight: 600;
+        color: #1f3348;
+        font-size: 0.95rem;
+    }
+    
+    .user-username {
+        color: #70869c;
+        font-size: 0.85rem;
+    }
+    
+    .districts-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        max-width: 400px;
+    }
+    
+    .district-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #e8f5e9;
+        color: #2e7d32;
+        padding: 4px 8px;
+        border-radius: 5px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .district-badge .remove-btn {
+        cursor: pointer;
+        margin-left: 4px;
+        font-weight: bold;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+    
+    .district-badge .remove-btn:hover {
+        opacity: 1;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    
+    .action-buttons .btn {
+        padding: 4px 10px;
+        font-size: 0.85rem;
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+    
+    .district-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 10px;
+    }
+    
+    .district-checkbox {
+        padding: 8px;
+    }
+    
+    .district-checkbox input {
+        cursor: pointer;
+    }
+    
+    .district-checkbox label {
+        margin-left: 6px;
+        margin-bottom: 0;
+        cursor: pointer;
+    }
+</style>
+        flex-direction: column;
+    }
+    
+    .user-name {
+        font-weight: 600;
+        color: #1f3348;
+        font-size: 0.95rem;
+    }
+    
+    .user-username {
+        color: #70869c;
+        font-size: 0.85rem;
+    }
+    
+    .districts-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        max-width: 400px;
+    }
+    
+    .district-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #e8f5e9;
+        color: #2e7d32;
+        padding: 4px 8px;
+        border-radius: 5px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .district-badge .remove-btn {
+        cursor: pointer;
+        margin-left: 4px;
+        font-weight: bold;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+    
+    .district-badge .remove-btn:hover {
+        opacity: 1;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+    
+    .action-buttons .btn {
+        padding: 4px 10px;
+        font-size: 0.85rem;
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+    
+    .district-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 10px;
+    }
+    
+    .district-checkbox {
+        padding: 8px;
+    }
+    
+    .district-checkbox input {
+        cursor: pointer;
+    }
+    
+    .district-checkbox label {
+        margin-left: 6px;
+        margin-bottom: 0;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block admin_content %}
+<div class="permissions-stats">
+    <div class="stat-card">
+        <p>Tổng User</p>
+        <h3>{{ total_users }}</h3>
+    </div>
+    <div class="stat-card">
+        <p>Tổng Quận/Huyện</p>
+        <h3>{{ total_districts }}</h3>
+    </div>
+    <div class="stat-card">
+        <p>Tổng Phân Quyền</p>
+        <h3>{{ total_permissions }}</h3>
+    </div>
+</div>
+
+<!-- Form tìm kiếm -->
+<div class="permissions-toolbar">
+    <form method="get" class="row g-2 align-items-center">
+        <div class="col-md-8">
+            <input type="text" name="q" class="form-control form-control-sm" 
+                   placeholder="Tìm theo username, email, tên..." 
+                   value="{{ search_query }}">
+        </div>
+        <div class="col-md-2">
+            <button type="submit" class="btn btn-primary btn-sm w-100">
+                <i class="fas fa-search"></i> Tìm
+            </button>
+        </div>
+        <div class="col-md-2">
+            <a href="{% url 'admin_district_permissions' %}" class="btn btn-outline-secondary btn-sm w-100">
+                Làm mới
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Hiển thị messages nếu có -->
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+    {{ message }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endfor %}
+{% endif %}
+
+<div class="permissions-table-wrapper">
+    <table class="permissions-table">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Email</th>
+                <th>Quận/Huyện được gán</th>
+                <th style="width: 150px;">Hành động</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in user_district_list %}
+            <tr data-user-id="{{ item.user.id }}" data-user-name="{{ item.user.username }}">
+                <td>
+                    <div class="user-info">
+                        <div class="user-avatar">{{ item.user.username|first|upper }}</div>
+                        <div class="user-details">
+                            <div class="user-name">
+                                {% if item.user.first_name or item.user.last_name %}
+                                    {{ item.user.first_name }} {{ item.user.last_name }}
+                                {% else %}
+                                    {{ item.user.username }}
+                                {% endif %}
+                                {% if item.user.is_staff %}<span class="badge bg-warning">Admin</span>{% endif %}
+                            </div>
+                            <div class="user-username">@{{ item.user.username }}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>{{ item.user.email|default:'---' }}</td>
+                <td>
+                    <div class="districts-list" id="districts-{{ item.user.id }}">
+                        {% if item.total > 0 %}
+                            {% for district in districts %}
+                                {% if district.id in item.district_ids %}
+                                <div class="district-badge">
+                                    <span>{{ district.name }}</span>
+                                    <span class="remove-btn" onclick="removePermission({{ item.user.id }}, {{ district.id }})">×</span>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted">Chưa được gán</span>
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <button type="button" class="btn btn-sm btn-primary" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#assignModal"
+                                data-user-id="{{ item.user.id }}"
+                                data-user-name="{{ item.user.username }}">
+                            <i class="fas fa-plus"></i> Gán
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="text-center text-muted py-4">
+                    <i class="fas fa-inbox"></i> Không có user nào
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Phân trang -->
+{% if paginator.num_pages > 1 %}
+<nav aria-label="Phân trang" style="margin-top: 20px;">
+    <ul class="pagination mb-0">
+        <!-- Nút Trang Trước -->
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page=1{% if search_query %}&q={{ search_query }}{% endif %}">
+                <i class="fas fa-chevron-left"></i> Đầu
+            </a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}">
+                <i class="fas fa-angle-left"></i> Trước
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link"><i class="fas fa-chevron-left"></i> Đầu</span>
+        </li>
+        <li class="page-item disabled">
+            <span class="page-link"><i class="fas fa-angle-left"></i> Trước</span>
+        </li>
+        {% endif %}
+
+        <!-- Số Trang -->
+        {% for num in paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active">
+                <span class="page-link">{{ num }}</span>
+            </li>
+            {% else %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ num }}{% if search_query %}&q={{ search_query }}{% endif %}">{{ num }}</a>
+            </li>
+            {% endif %}
+        {% endfor %}
+
+        <!-- Nút Trang Sau -->
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&q={{ search_query }}{% endif %}">
+                Sau <i class="fas fa-angle-right"></i>
+            </a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ paginator.num_pages }}{% if search_query %}&q={{ search_query }}{% endif %}">
+                Cuối <i class="fas fa-chevron-right"></i>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">Sau <i class="fas fa-angle-right"></i></span>
+        </li>
+        <li class="page-item disabled">
+            <span class="page-link">Cuối <i class="fas fa-chevron-right"></i></span>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+<p class="text-muted text-center mt-3">
+    <small>Trang {{ page_obj.number }} / {{ paginator.num_pages }} (Tổng: {{ total_users }} user đang hoạt động)</small>
+</p>
+{% endif %}
+
+<!-- Modal: Gán Quận/Huyện -->
+<div class="modal fade" id="assignModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-map-pin"></i> Gán Quận/Huyện cho User
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" id="assignForm">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="mb-3">
+                        <strong>User:</strong> <span id="selectedUserName"></span>
+                    </p>
+                    <p><strong>Chọn quận/huyện:</strong></p>
+                    <div class="district-grid">
+                        {% for district in districts %}
+                        <div class="district-checkbox">
+                            <input type="checkbox" id="dist_{{ district.id }}" value="{{ district.id }}" class="district-check">
+                            <label for="dist_{{ district.id }}">{{ district.name }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-primary" onclick="submitAssignForm()">
+                        <i class="fas fa-check"></i> Gán
+                    </button>
+                </div>
+                <input type="hidden" name="user_id" id="assignUserInput" value="">
+                <input type="hidden" name="district_id" id="assignDistrictInput" value="">
+                <input type="hidden" name="action" value="add">
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Khi mở modal
+document.getElementById('assignModal').addEventListener('show.bs.modal', function(e) {
+    const button = e.relatedTarget;
+    const userId = button.getAttribute('data-user-id');
+    const userName = button.getAttribute('data-user-name');
+    
+    document.getElementById('selectedUserName').textContent = '@' + userName;
+    document.getElementById('assignUserInput').value = userId;
+    
+    // Uncheck all boxes
+    document.querySelectorAll('.district-check').forEach(cb => cb.checked = false);
+});
+
+// Gán từng quận/huyện
+function submitAssignForm() {
+    const userId = document.getElementById('assignUserInput').value;
+    const checkedBoxes = document.querySelectorAll('.district-check:checked');
+    
+    if (checkedBoxes.length === 0) {
+        alert('Vui lòng chọn ít nhất 1 quận/huyện');
+        return;
+    }
+    
+    // Submit form cho mỗi quận/huyện được chọn
+    checkedBoxes.forEach(checkbox => {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = `
+            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+            <input type="hidden" name="action" value="add">
+            <input type="hidden" name="user_id" value="${userId}">
+            <input type="hidden" name="district_id" value="${checkbox.value}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+        form.remove();
+    });
+}
+
+// Xóa phân quyền
+function removePermission(userId, districtId) {
+    if (confirm('Xác nhận xóa quyền quản lý quận/huyện này?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.innerHTML = `
+            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+            <input type="hidden" name="action" value="remove">
+            <input type="hidden" name="user_id" value="${userId}">
+            <input type="hidden" name="district_id" value="${districtId}">
+        `;
+        document.body.appendChild(form);
+        form.submit();
+        form.remove();
+    }
+}
+</script>
+
+{% endblock %}
