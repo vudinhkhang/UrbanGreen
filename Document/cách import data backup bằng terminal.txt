@@ -1,0 +1,10 @@
+$psql = "C:\Program Files\PostgreSQL\18\bin\psql.exe"
+
+# Nếu database chưa có:
+& $psql -U postgres -c "CREATE DATABASE urbangreen_db;"
+
+# Import dump
+& $psql -U postgres -d urbangreen_db -f ".\Document\backup.sql"
+
+# Kiểm tra bảng
+& $psql -U postgres -d urbangreen_db -c "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename;"
