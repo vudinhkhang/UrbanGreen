@@ -129,7 +129,7 @@
         <nav>
             <ul class="pagination pagination-sm">
                 {% if page_obj.has_previous %}
-                <li class="page-item"><a class="page-link" href="?q={{ q }}&role={{ selected_role }}&status={{ selected_status }}&page={{ page_obj.previous_page_number }}">Trước</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Trước</a></li>
                 {% else %}
                 <li class="page-item disabled"><span class="page-link">Trước</span></li>
                 {% endif %}
@@ -137,7 +137,7 @@
                 <li class="page-item active"><span class="page-link">{{ page_obj.number }}</span></li>
 
                 {% if page_obj.has_next %}
-                <li class="page-item"><a class="page-link" href="?q={{ q }}&role={{ selected_role }}&status={{ selected_status }}&page={{ page_obj.next_page_number }}">Sau</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Sau</a></li>
                 {% else %}
                 <li class="page-item disabled"><span class="page-link">Sau</span></li>
                 {% endif %}
